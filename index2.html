@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сибилева Юлия Николаевна — Эксперт финансового учёта</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a0000;
+    --card: #2a0505;
+    --border: rgba(180,150,80,0.18);
+    --gold: #c9a84c;
+    --gold2: #f0d080;
+    --gold3: #7a5c1e;
+    --text: #e8e8e8;
+    --muted: #888;
+    --accent: #c9a84c;
+  }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Georgia', 'Times New Roman', serif;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    overflow-x: hidden;
+  }
+
+  /* --- Particles --- */
+  #particles {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .particle {
+    position: absolute;
+    border-radius: 50%;
+    background: var(--gold);
+    opacity: 0;
+    animation: float linear infinite;
+  }
+  @keyframes float {
+    0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+    10%  { opacity: 0.4; }
+    90%  { opacity: 0.15; }
+    100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+  }
+
+  /* --- Card --- */
+  .card {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 560px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 56px 48px 48px;
+    text-align: center;
+    box-shadow:
+      0 0 0 1px rgba(201,168,76,0.07),
+      0 24px 80px rgba(0,0,0,0.7),
+      0 0 60px rgba(201,168,76,0.04);
+    animation: cardIn 0.9s cubic-bezier(.22,1,.36,1) both;
+  }
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(32px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Gold top line */
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 10%; right: 10%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    border-radius: 2px;
+  }
+
+  /* --- Avatar --- */
+  .avatar-wrap {
+    position: relative;
+    display: inline-block;
+    margin-bottom: 28px;
+  }
+  .avatar-ring {
+    width: 108px; height: 108px;
+    border-radius: 50%;
+    background: conic-gradient(var(--gold), var(--gold2), var(--gold3), var(--gold));
+    padding: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: spinRing 8s linear infinite;
+    box-shadow: 0 0 32px rgba(201,168,76,0.25);
+  }
+  @keyframes spinRing {
+    to { filter: hue-rotate(30deg); }
+  }
+  .avatar-inner {
+    width: 100%; height: 100%;
+    border-radius: 50%;
+    background: #16161a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .avatar-initials {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    user-select: none;
+  }
+  .status-dot {
+    position: absolute;
+    bottom: 4px; right: 4px;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #2ecc71;
+    border: 3px solid var(--card);
+    box-shadow: 0 0 8px rgba(46,204,113,0.6);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(46,204,113,0.6); }
+    50%       { box-shadow: 0 0 18px rgba(46,204,113,0.9); }
+  }
+
+  /* --- Name --- */
+  .name {
+    font-size: clamp(1.45rem, 5vw, 2rem);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    line-height: 1.25;
+    background: linear-gradient(135deg, #d4a843 0%, #f5e08a 45%, #c9a84c 70%, #f0d080 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 18px rgba(201,168,76,0.45));
+    animation: glowPulse 3s ease-in-out infinite;
+    margin-bottom: 8px;
+  }
+  @keyframes glowPulse {
+    0%, 100% { filter: drop-shadow(0 0 14px rgba(201,168,76,0.4)); }
+    50%       { filter: drop-shadow(0 0 28px rgba(201,168,76,0.75)); }
+  }
+
+  /* --- Divider --- */
+  .divider {
+    width: 60px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    margin: 16px auto;
+  }
+
+  /* --- Specialization --- */
+  .spec {
+    font-size: clamp(0.85rem, 3vw, 1rem);
+    color: var(--muted);
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    font-family: 'Arial', sans-serif;
+    font-weight: 400;
+    line-height: 1.5;
+    margin-bottom: 6px;
+  }
+  .spec span {
+    color: rgba(201,168,76,0.75);
+  }
+
+  /* --- Tags --- */
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+    margin: 20px 0 32px;
+  }
+  .tag {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 100px;
+    font-size: 0.72rem;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--gold);
+    background: rgba(201,168,76,0.05);
+    font-family: 'Arial', sans-serif;
+    transition: all 0.3s;
+  }
+  .tag:hover {
+    background: rgba(201,168,76,0.12);
+    border-color: var(--gold);
+    box-shadow: 0 0 12px rgba(201,168,76,0.2);
+  }
+
+  /* --- Social icons --- */
+  .socials {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-bottom: 32px;
+  }
+  .social-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px; height: 50px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    background: rgba(255,255,255,0.03);
+    color: var(--muted);
+    text-decoration: none;
+    transition: all 0.3s cubic-bezier(.22,1,.36,1);
+    position: relative;
+    overflow: hidden;
+  }
+  .social-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--gold), var(--gold2));
+    opacity: 0;
+    transition: opacity 0.3s;
+    border-radius: inherit;
+  }
+  .social-btn svg {
+    position: relative;
+    z-index: 1;
+    transition: transform 0.3s, color 0.3s;
+    fill: currentColor;
+  }
+  .social-btn:hover {
+    border-color: var(--gold);
+    color: var(--bg);
+    transform: translateY(-4px) scale(1.08);
+    box-shadow: 0 12px 30px rgba(201,168,76,0.3);
+  }
+  .social-btn:hover::before { opacity: 1; }
+  .social-btn:hover svg { transform: scale(1.15); }
+
+  /* Tooltip */
+  .social-btn[data-tip]::after {
+    content: attr(data-tip);
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: rgba(30,30,30,0.95);
+    color: var(--gold2);
+    font-size: 0.7rem;
+    padding: 4px 10px;
+    border-radius: 6px;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s, transform 0.25s;
+    font-family: 'Arial', sans-serif;
+  }
+  .social-btn:hover::after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* --- CTA Button --- */
+  .cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 40px;
+    border: none;
+    border-radius: 14px;
+    background: linear-gradient(135deg, var(--gold3), var(--gold), var(--gold2));
+    background-size: 200% 200%;
+    color: #0a0a0a;
+    font-size: 1rem;
+    font-weight: 700;
+    font-family: 'Arial', sans-serif;
+    letter-spacing: 0.5px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(.22,1,.36,1);
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(201,168,76,0.3);
+    animation: bgShift 4s ease infinite;
+  }
+  @keyframes bgShift {
+    0%, 100% { background-position: 0% 50%; }
+    50%       { background-position: 100% 50%; }
+  }
+  .cta::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255,255,255,0);
+    transition: background 0.3s;
+  }
+  .cta:hover {
+    transform: translateY(-3px) scale(1.03);
+    box-shadow: 0 12px 40px rgba(201,168,76,0.5);
+  }
+  .cta:hover::after { background: rgba(255,255,255,0.1); }
+  .cta:active { transform: scale(0.98); }
+  .cta svg { position: relative; z-index: 1; fill: currentColor; }
+  .cta span { position: relative; z-index: 1; }
+
+  /* Ripple */
+  .ripple {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.35);
+    transform: scale(0);
+    animation: rippleAnim 0.6s linear;
+    pointer-events: none;
+  }
+  @keyframes rippleAnim {
+    to { transform: scale(4); opacity: 0; }
+  }
+
+  /* --- Footer --- */
+  .footer {
+    margin-top: 36px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    font-size: 0.72rem;
+    color: rgba(136,136,136,0.5);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'Arial', sans-serif;
+  }
+
+  /* --- Responsive --- */
+  @media (max-width: 480px) {
+    .card { padding: 40px 24px 36px; }
+    .cta { padding: 14px 28px; font-size: 0.9rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Floating particles -->
+<div id="particles"></div>
+
+<div class="card">
+
+  <!-- Avatar -->
+  <div class="avatar-wrap">
+    <div class="avatar-ring">
+      <div class="avatar-inner">
+        <span class="avatar-initials">ЮС</span>
+      </div>
+    </div>
+    <div class="status-dot" title="Доступна"></div>
+  </div>
+
+  <!-- Name -->
+  <h1 class="name">Сибилева Юлия Николаевна</h1>
+
+  <div class="divider"></div>
+
+  <!-- Specialization -->
+  <p class="spec">
+    <span>✦</span>&nbsp;Эксперт финансового и управленческого учёта&nbsp;<span>✦</span>
+  </p>
+
+  <!-- Tags -->
+  <div class="tags">
+    <div class="tag">Финансы</div>
+    <div class="tag">Управленческий учёт</div>
+    <div class="tag">Аналитика</div>
+    <div class="tag">Консалтинг</div>
+  </div>
+
+  <!-- Socials -->
+  <div class="socials">
+    <!-- Telegram -->
+    <a href="https://t.me/imfinsib" target="_blank" rel="noopener" class="social-btn" data-tip="Telegram">
+      <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.96 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
+      </svg>
+    </a>
+
+    <!-- Email placeholder (styled) -->
+    <a href="mailto:info@example.com" class="social-btn" data-tip="Email">
+      <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>
+      </svg>
+    </a>
+
+    <!-- LinkedIn placeholder -->
+    <a href="#" class="social-btn" data-tip="LinkedIn">
+      <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 0 1-2.063-2.065 2.064 2.064 0 1 1 2.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+      </svg>
+    </a>
+
+    <!-- WhatsApp placeholder -->
+    <a href="#" class="social-btn" data-tip="WhatsApp">
+      <svg width="22" height="22" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
+      </svg>
+    </a>
+  </div>
+
+  <!-- CTA Button -->
+  <a href="https://t.me/imfinsib" target="_blank" rel="noopener" class="cta" id="ctaBtn">
+    <svg width="18" height="18" viewBox="0 0 24 24">
+      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+    </svg>
+    <span>Написать мне</span>
+  </a>
+
+  <div class="footer">Финансовый эксперт · Консультации и аналитика</div>
+</div>
+
+<script>
+  /* --- Particles --- */
+  (function() {
+    const container = document.getElementById('particles');
+    const count = 28;
+    for (let i = 0; i < count; i++) {
+      const p = document.createElement('div');
+      p.className = 'particle';
+      const size = Math.random() * 3 + 1;
+      p.style.cssText = `
+        width:${size}px; height:${size}px;
+        left:${Math.random()*100}%;
+        animation-duration:${8 + Math.random()*14}s;
+        animation-delay:${Math.random()*12}s;
+        opacity:0;
+      `;
+      container.appendChild(p);
+    }
+  })();
+
+  /* --- CTA Ripple --- */
+  document.getElementById('ctaBtn').addEventListener('click', function(e) {
+    const btn = this;
+    const rect = btn.getBoundingClientRect();
+    const rip = document.createElement('span');
+    rip.className = 'ripple';
+    const size = Math.max(rect.width, rect.height);
+    rip.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${e.clientX - rect.left - size/2}px;
+      top:${e.clientY - rect.top - size/2}px;
+    `;
+    btn.appendChild(rip);
+    setTimeout(() => rip.remove(), 700);
+  });
+
+  /* --- Card tilt on mouse move --- */
+  const card = document.querySelector('.card');
+  document.addEventListener('mousemove', function(e) {
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (e.clientX - cx) / (window.innerWidth / 2);
+    const dy = (e.clientY - cy) / (window.innerHeight / 2);
+    const rx = -dy * 6;
+    const ry = dx * 6;
+    card.style.transform = `perspective(900px) rotateX(${rx}deg) rotateY(${ry}deg)`;
+  });
+  document.addEventListener('mouseleave', function() {
+    card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
+    card.style.transition = 'transform 0.6s cubic-bezier(.22,1,.36,1)';
+  });
+  document.addEventListener('mousemove', function() {
+    card.style.transition = 'transform 0.08s linear';
+  });
+
+  /* --- Touch tilt for mobile --- */
+  document.addEventListener('touchmove', function(e) {
+    const t = e.touches[0];
+    const rect = card.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = (t.clientX - cx) / (window.innerWidth / 2);
+    const dy = (t.clientY - cy) / (window.innerHeight / 2);
+    card.style.transform = `perspective(900px) rotateX(${-dy*4}deg) rotateY(${dx*4}deg)`;
+    card.style.transition = 'transform 0.1s linear';
+  }, {passive:true});
+  document.addEventListener('touchend', function() {
+    card.style.transform = 'perspective(900px) rotateX(0deg) rotateY(0deg)';
+    card.style.transition = 'transform 0.6s cubic-bezier(.22,1,.36,1)';
+  });
+</script>
+</body>
+</html>
