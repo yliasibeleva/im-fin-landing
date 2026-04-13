@@ -424,14 +424,24 @@
   <div class="sticky-header" id="stickyHeader">
     <div class="sticky-logo">
       <!-- logo small -->
-      <svg width="34" height="34" viewBox="0 0 100 100" fill="none">
+      <svg width="34" height="34" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <clipPath id="s-top"><rect x="0" y="0" width="100" height="50"/></clipPath>
           <clipPath id="s-bot"><rect x="0" y="50" width="100" height="50"/></clipPath>
         </defs>
-        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#s-bot)"/>
-        <ellipse cx="40" cy="63" rx="34" ry="20" fill="none" stroke="#7b1c2e" stroke-width="14"/>
-        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#s-top)"/>
+        <!-- Green ring — bottom half (behind burgundy) -->
+        <g clip-path="url(#s-bot)">
+          <ellipse cx="62" cy="37" rx="34" ry="20" fill="#1a5c3a" transform="rotate(-30,62,37)"/>
+          <ellipse cx="62" cy="37" rx="21" ry="9"  fill="#0d0406" transform="rotate(-30,62,37)"/>
+        </g>
+        <!-- Burgundy ring — full -->
+        <ellipse cx="38" cy="63" rx="34" ry="20" fill="#7b1c2e" transform="rotate(-30,38,63)"/>
+        <ellipse cx="38" cy="63" rx="21" ry="9"  fill="#0d0406" transform="rotate(-30,38,63)"/>
+        <!-- Green ring — top half (in front) -->
+        <g clip-path="url(#s-top)">
+          <ellipse cx="62" cy="37" rx="34" ry="20" fill="#1a5c3a" transform="rotate(-30,62,37)"/>
+          <ellipse cx="62" cy="37" rx="21" ry="9"  fill="#0d0406" transform="rotate(-30,62,37)"/>
+        </g>
       </svg>
       <div class="sticky-logo-name">ИМПЕРИЯ ФИНАНС</div>
     </div>
@@ -441,18 +451,25 @@
   <!-- ══ MAIN HEADER ══ -->
   <header>
     <div class="logo-block">
-      <!-- LOGO — точные цепные звенья с эффектом переплетения -->
+      <!-- LOGO — цепные звенья с заливкой и отверстием -->
       <svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <clipPath id="m-top"><rect x="0" y="0" width="100" height="50"/></clipPath>
           <clipPath id="m-bot"><rect x="0" y="50" width="100" height="50"/></clipPath>
         </defs>
         <!-- Зелёное звено — нижняя часть (за бордо) -->
-        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#m-bot)"/>
+        <g clip-path="url(#m-bot)">
+          <ellipse cx="62" cy="37" rx="34" ry="20" fill="#1a5c3a" transform="rotate(-30,62,37)"/>
+          <ellipse cx="62" cy="37" rx="21" ry="9"  fill="#0d0406" transform="rotate(-30,62,37)"/>
+        </g>
         <!-- Бордо звено — полностью -->
-        <ellipse cx="40" cy="63" rx="34" ry="20" fill="none" stroke="#7b1c2e" stroke-width="14"/>
+        <ellipse cx="38" cy="63" rx="34" ry="20" fill="#7b1c2e" transform="rotate(-30,38,63)"/>
+        <ellipse cx="38" cy="63" rx="21" ry="9"  fill="#0d0406" transform="rotate(-30,38,63)"/>
         <!-- Зелёное звено — верхняя часть (перед бордо) -->
-        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#m-top)"/>
+        <g clip-path="url(#m-top)">
+          <ellipse cx="62" cy="37" rx="34" ry="20" fill="#1a5c3a" transform="rotate(-30,62,37)"/>
+          <ellipse cx="62" cy="37" rx="21" ry="9"  fill="#0d0406" transform="rotate(-30,62,37)"/>
+        </g>
       </svg>
 
       <div class="logo-text-wrap">
