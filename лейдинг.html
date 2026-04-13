@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Империя Финанс — Финансовая устойчивость бизнеса</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --b0:  #0d0406;   /* darkest bg */
+      --b1:  #5a1020;   /* deep bordo */
+      --b2:  #7b1c2e;   /* bordo */
+      --b3:  #a02438;   /* medium bordo */
+      --b4:  #c43050;   /* bright bordo */
+      --b5:  #e8a0ac;   /* pale pink */
+      --b6:  #f5dde0;   /* cream */
+      --gold: #d4a040;  /* gold accent */
+      --card-bg:     rgba(160,36,56,0.06);
+      --card-border: rgba(160,36,56,0.18);
+      --text:  #f0e6e8;
+      --muted: #c0989e;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(155deg, #0d0406 0%, #150508 50%, #0d0406 100%);
+      min-height: 100vh;
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0;
+    }
+
+    .orb { position: fixed; border-radius: 50%; filter: blur(110px); pointer-events: none; z-index: 0; }
+    .orb-1 { width: 600px; height: 600px; background: #7b1c2e; opacity: 0.28; top: -200px; left: -150px; }
+    .orb-2 { width: 480px; height: 480px; background: #5a1020; opacity: 0.22; bottom: -130px; right: -130px; }
+    .orb-3 { width: 320px; height: 320px; background: #a02438; opacity: 0.10; top: 42%; left: 52%; }
+
+    .container { position: relative; z-index: 1; max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+    /* ══════════════════════════════
+       STICKY HEADER
+    ══════════════════════════════ */
+    .sticky-header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 11px 32px;
+      background: rgba(13,4,6,0.88);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(160,36,56,0.2);
+      transform: translateY(-100%); transition: transform 0.35s ease;
+    }
+    .sticky-header.show { transform: translateY(0); }
+    .sticky-logo { display: flex; align-items: center; gap: 12px; }
+    .sticky-logo-name {
+      font-size: 0.92rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--b6);
+    }
+    .sticky-cta {
+      display: inline-block; padding: 9px 26px;
+      font-size: 0.82rem; font-weight: 700; color: #fff; text-decoration: none;
+      background: linear-gradient(135deg, var(--b3), var(--b1));
+      border-radius: 100px; transition: opacity 0.2s, transform 0.2s;
+    }
+    .sticky-cta:hover { opacity: 0.88; transform: translateY(-1px); }
+    @media (max-width: 480px) {
+      .sticky-header { padding: 10px 16px; }
+      .sticky-logo-name { font-size: 0.76rem; }
+    }
+
+    /* ══════════════════════════════
+       MAIN HEADER
+    ══════════════════════════════ */
+    header {
+      position: relative; z-index: 2;
+      padding: 30px 32px 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-block { display: flex; align-items: center; gap: 20px; }
+    .logo-text-wrap { display: flex; flex-direction: column; }
+    .logo-name {
+      font-size: 1.35rem; font-weight: 800; letter-spacing: 0.13em; text-transform: uppercase; line-height: 1.1;
+      color: var(--b6);
+    }
+    .logo-name .ln2 { color: var(--b5); }
+    .logo-tagline {
+      font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase;
+      color: var(--muted); margin-top: 5px;
+      border-top: 1px solid rgba(160,36,56,0.35); padding-top: 5px;
+    }
+
+    /* ══════════════════════════════
+       HERO
+    ══════════════════════════════ */
+    .hero { text-align: center; padding: 66px 24px 54px; }
+    .badge {
+      display: inline-block;
+      background: rgba(160,36,56,0.15); border: 1px solid rgba(160,36,56,0.4);
+      color: var(--b5); font-size: 0.74rem; font-weight: 600;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      border-radius: 100px; padding: 6px 20px; margin-bottom: 28px;
+    }
+    h1 {
+      font-size: clamp(2.1rem, 6vw, 3.8rem); font-weight: 800; line-height: 1.13;
+      background: linear-gradient(135deg, #ffffff 0%, var(--b6) 40%, var(--b5) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 22px;
+    }
+    .hero-sub {
+      font-size: clamp(0.97rem, 2.4vw, 1.15rem); color: var(--muted);
+      max-width: 620px; margin: 0 auto 22px; line-height: 1.72;
+    }
+    .services-line {
+      font-size: 0.85rem; color: rgba(192,152,158,0.75);
+      letter-spacing: 0.04em; margin-bottom: 50px; line-height: 2.2;
+    }
+    .services-line span { display: inline-block; margin: 0 8px; }
+    .services-line span::before { content: '·'; margin-right: 8px; color: var(--b3); }
+
+    /* ── CTA Button ── */
+    .cta-wrap { text-align: center; margin-bottom: 16px; }
+    .cta-btn {
+      display: inline-block; padding: 18px 52px;
+      font-size: 1.05rem; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, var(--b4) 0%, var(--b1) 100%);
+      border: none; border-radius: 100px; cursor: pointer; text-decoration: none;
+      letter-spacing: 0.03em;
+      animation: pulse 2.5s ease-in-out infinite;
+      transition: transform 0.18s, box-shadow 0.18s;
+    }
+    .cta-btn:hover {
+      transform: translateY(-3px) scale(1.03);
+      animation-play-state: paused;
+      box-shadow: 0 10px 44px rgba(160,36,56,0.5);
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0   rgba(196,48,80,0.65); }
+      60%  { box-shadow: 0 0 0 22px rgba(196,48,80,0); }
+      100% { box-shadow: 0 0 0 0   rgba(196,48,80,0); }
+    }
+
+    /* contact links */
+    .contact-links {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 24px; margin-top: 20px;
+    }
+    .contact-links a {
+      display: inline-flex; align-items: center; gap: 7px;
+      font-size: 0.83rem; color: var(--muted); text-decoration: none; transition: color 0.2s;
+    }
+    .contact-links a:hover { color: var(--b5); }
+    .contact-links a svg { width: 15px; height: 15px; flex-shrink: 0; }
+
+    /* ══════════════════════════════
+       STATS
+    ══════════════════════════════ */
+    .stats-strip { position: relative; z-index: 1; margin: 0 auto 80px; max-width: 1060px; padding: 0 24px; }
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(4,1fr);
+      gap: 1px; background: rgba(160,36,56,0.15);
+      border-radius: 20px; overflow: hidden; border: 1px solid rgba(160,36,56,0.18);
+    }
+    .stat {
+      background: var(--card-bg); backdrop-filter: blur(10px);
+      padding: 32px 20px; text-align: center; transition: background 0.25s;
+    }
+    .stat:hover { background: rgba(160,36,56,0.12); }
+    .stat-num {
+      font-size: clamp(1.9rem, 4vw, 2.8rem); font-weight: 800; line-height: 1;
+      background: linear-gradient(135deg, var(--b6), var(--b5));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      margin-bottom: 8px;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
+    @media (max-width: 640px) { .stats-grid { grid-template-columns: repeat(2,1fr); } }
+
+    /* ══════════════════════════════
+       SECTION TITLES
+    ══════════════════════════════ */
+    .section-title {
+      text-align: center; font-size: clamp(1.45rem, 4vw, 2rem);
+      font-weight: 700; margin-bottom: 10px;
+      background: linear-gradient(90deg, var(--b6), var(--b5));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .section-sub {
+      text-align: center; color: var(--muted); font-size: 0.93rem;
+      margin-bottom: 48px; line-height: 1.6;
+    }
+
+    /* ══════════════════════════════
+       CARDS
+    ══════════════════════════════ */
+    .cards {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(280px,1fr));
+      gap: 22px; margin-bottom: 80px;
+    }
+    .card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 20px; padding: 34px 28px; backdrop-filter: blur(10px);
+      transition: transform 0.25s, border-color 0.25s, box-shadow 0.25s;
+    }
+    .card:hover {
+      transform: translateY(-6px); border-color: rgba(196,48,80,0.4);
+      box-shadow: 0 14px 50px rgba(123,28,46,0.2);
+    }
+    .card-icon {
+      width: 52px; height: 52px; margin-bottom: 20px;
+      display: flex; align-items: center; justify-content: center;
+      background: linear-gradient(135deg, rgba(123,28,46,0.3), rgba(90,16,32,0.2));
+      border-radius: 14px; border: 1px solid rgba(160,36,56,0.25);
+    }
+    .card-icon svg { width: 28px; height: 28px; }
+    .card h3 { font-size: 1.07rem; font-weight: 700; margin-bottom: 11px; color: #fff; }
+    .card p  { font-size: 0.88rem; color: var(--muted); line-height: 1.66; }
+
+    /* ══════════════════════════════
+       HOW IT WORKS
+    ══════════════════════════════ */
+    .steps {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(220px,1fr));
+      gap: 0; margin-bottom: 80px; position: relative;
+    }
+    .step {
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      padding: 0 24px; position: relative;
+    }
+    .step:not(:last-child)::after {
+      content: ''; position: absolute; top: 28px; left: calc(50% + 36px);
+      width: calc(100% - 72px); height: 1px;
+      background: linear-gradient(90deg, rgba(196,48,80,0.5), rgba(90,16,32,0.3));
+    }
+    .step-num {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--b4), var(--b1));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; font-weight: 800; color: #fff;
+      margin-bottom: 18px; flex-shrink: 0; position: relative; z-index: 1;
+      box-shadow: 0 0 0 7px rgba(196,48,80,0.12);
+    }
+    .step h4 { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
+    .step p  { font-size: 0.85rem; color: var(--muted); line-height: 1.65; }
+    @media (max-width: 640px) {
+      .steps { gap: 32px; }
+      .step:not(:last-child)::after { display: none; }
+    }
+
+    /* ══════════════════════════════
+       AUDIENCE
+    ══════════════════════════════ */
+    .audience {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
+      gap: 20px; margin-bottom: 80px;
+    }
+    .aud-card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 16px; padding: 28px 24px; backdrop-filter: blur(10px);
+      transition: transform 0.22s, border-color 0.22s;
+    }
+    .aud-card:hover { transform: translateY(-4px); border-color: rgba(196,48,80,0.4); }
+    .aud-title {
+      font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 10px;
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .aud-tag {
+      font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em;
+      background: linear-gradient(135deg, var(--b4), var(--b1));
+      color: #fff; padding: 3px 10px; border-radius: 100px;
+    }
+    .aud-card p { font-size: 0.87rem; color: var(--muted); line-height: 1.66; }
+
+    /* ══════════════════════════════
+       REVIEWS
+    ══════════════════════════════ */
+    .reviews {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(260px,1fr));
+      gap: 22px; margin-bottom: 80px;
+    }
+    .review-card {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 20px; padding: 30px 26px; backdrop-filter: blur(10px);
+      transition: transform 0.25s, border-color 0.25s;
+      display: flex; flex-direction: column; gap: 16px;
+    }
+    .review-card:hover { transform: translateY(-5px); border-color: rgba(196,48,80,0.38); }
+    .review-stars { display: flex; gap: 4px; }
+    .review-stars svg { width: 16px; height: 16px; }
+    .review-text {
+      font-size: 0.9rem; color: var(--text); line-height: 1.7; font-style: italic; flex: 1;
+    }
+    .review-text::before { content: '\201C'; color: var(--b5); font-size: 1.6rem; line-height: 0; vertical-align: -0.4em; margin-right: 3px; font-style: normal; }
+    .review-text::after  { content: '\201D'; color: var(--b5); font-size: 1.6rem; line-height: 0; vertical-align: -0.4em; margin-left:  3px; font-style: normal; }
+    .review-author { display: flex; align-items: center; gap: 14px; }
+    .review-avatar {
+      width: 42px; height: 42px; border-radius: 50%; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.88rem; font-weight: 700; color: #fff;
+    }
+    .av-1 { background: linear-gradient(135deg, #7b1c2e, #a02438); }
+    .av-2 { background: linear-gradient(135deg, #5a1020, #7b1c2e); }
+    .av-3 { background: linear-gradient(135deg, #8c2040, #c43050); }
+    .av-4 { background: linear-gradient(135deg, #6a1828, #9b2038); }
+    .review-name { font-size: 0.88rem; font-weight: 700; color: #fff; }
+    .review-role { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
+
+    /* ══════════════════════════════
+       FAQ
+    ══════════════════════════════ */
+    .faq { margin-bottom: 80px; }
+    .faq-item {
+      background: var(--card-bg); border: 1px solid var(--card-border);
+      border-radius: 14px; margin-bottom: 10px; overflow: hidden; backdrop-filter: blur(8px);
+      transition: border-color 0.25s;
+    }
+    .faq-item.open { border-color: rgba(196,48,80,0.38); }
+    .faq-q {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 20px 24px; cursor: pointer; user-select: none; gap: 16px;
+      font-size: 0.97rem; font-weight: 600; color: var(--text); transition: color 0.2s;
+    }
+    .faq-item.open .faq-q { color: var(--b5); }
+    .faq-icon {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15);
+      display: flex; align-items: center; justify-content: center;
+      transition: transform 0.3s, background 0.3s, border-color 0.3s;
+    }
+    .faq-icon svg { width: 12px; height: 12px; transition: transform 0.3s; }
+    .faq-item.open .faq-icon { background: rgba(196,48,80,0.25); border-color: rgba(196,48,80,0.5); }
+    .faq-item.open .faq-icon svg { transform: rotate(45deg); }
+    .faq-a {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.4s ease, padding 0.3s;
+      font-size: 0.88rem; color: var(--muted); line-height: 1.7; padding: 0 24px;
+    }
+    .faq-item.open .faq-a { max-height: 300px; padding: 0 24px 20px; }
+
+    /* ══════════════════════════════
+       DIVIDER
+    ══════════════════════════════ */
+    .divider {
+      border: none; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(160,36,56,0.3), transparent);
+      margin: 0 0 70px;
+    }
+
+    /* ══════════════════════════════
+       FINAL CTA
+    ══════════════════════════════ */
+    .final-cta { text-align: center; padding: 0 24px 80px; }
+    .final-cta h2 {
+      font-size: clamp(1.5rem, 4vw, 2.3rem); font-weight: 800; margin-bottom: 14px;
+      background: linear-gradient(135deg, #ffffff, var(--b6));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .final-cta > p {
+      color: var(--muted); font-size: 0.95rem; margin-bottom: 34px;
+      max-width: 500px; margin-left: auto; margin-right: auto; line-height: 1.7;
+    }
+
+    /* ══════════════════════════════
+       FOOTER
+    ══════════════════════════════ */
+    footer {
+      position: relative; z-index: 1; text-align: center;
+      padding: 22px 24px; border-top: 1px solid rgba(160,36,56,0.18);
+    }
+    .footer-contacts {
+      display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 24px; margin-bottom: 14px;
+    }
+    .footer-contacts a {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 0.8rem; color: var(--muted); text-decoration: none; transition: color 0.2s;
+    }
+    .footer-contacts a:hover { color: var(--b5); }
+    .footer-contacts a svg { width: 13px; height: 13px; }
+    .footer-copy { font-size: 0.74rem; color: rgba(192,152,158,0.4); }
+
+    /* ══════════════════════════════
+       FLOATING MOBILE BUTTON
+    ══════════════════════════════ */
+    .float-btn {
+      display: none; position: fixed; bottom: 24px; right: 20px; z-index: 200;
+      width: 58px; height: 58px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--b4), var(--b1));
+      align-items: center; justify-content: center; text-decoration: none;
+      box-shadow: 0 6px 28px rgba(123,28,46,0.55);
+      animation: pulse 2.5s ease-in-out infinite;
+    }
+    .float-btn svg { width: 24px; height: 24px; }
+    @media (max-width: 640px) { .float-btn { display: flex; } }
+
+    /* ══════════════════════════════
+       REVEAL
+    ══════════════════════════════ */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.7s ease, transform 0.7s ease; }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+
+    /* ══════════════════════════════
+       MOBILE
+    ══════════════════════════════ */
+    @media (max-width: 600px) {
+      .hero { padding: 48px 16px 40px; }
+      .cards, .audience, .reviews { gap: 14px; }
+      .card, .aud-card, .review-card { padding: 24px 18px; }
+      .cta-btn { padding: 16px 34px; font-size: 0.96rem; }
+      .logo-name { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <!-- ══ STICKY HEADER ══ -->
+  <div class="sticky-header" id="stickyHeader">
+    <div class="sticky-logo">
+      <!-- logo small -->
+      <svg width="34" height="34" viewBox="0 0 100 100" fill="none">
+        <defs>
+          <clipPath id="s-top"><rect x="0" y="0" width="100" height="50"/></clipPath>
+          <clipPath id="s-bot"><rect x="0" y="50" width="100" height="50"/></clipPath>
+        </defs>
+        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#s-bot)"/>
+        <ellipse cx="40" cy="63" rx="34" ry="20" fill="none" stroke="#7b1c2e" stroke-width="14"/>
+        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#s-top)"/>
+      </svg>
+      <div class="sticky-logo-name">ИМПЕРИЯ ФИНАНС</div>
+    </div>
+    <a href="tel:+79616226777" class="sticky-cta">Позвонить</a>
+  </div>
+
+  <!-- ══ MAIN HEADER ══ -->
+  <header>
+    <div class="logo-block">
+      <!-- LOGO — точные цепные звенья с эффектом переплетения -->
+      <svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="m-top"><rect x="0" y="0" width="100" height="50"/></clipPath>
+          <clipPath id="m-bot"><rect x="0" y="50" width="100" height="50"/></clipPath>
+        </defs>
+        <!-- Зелёное звено — нижняя часть (за бордо) -->
+        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#m-bot)"/>
+        <!-- Бордо звено — полностью -->
+        <ellipse cx="40" cy="63" rx="34" ry="20" fill="none" stroke="#7b1c2e" stroke-width="14"/>
+        <!-- Зелёное звено — верхняя часть (перед бордо) -->
+        <ellipse cx="60" cy="37" rx="34" ry="20" fill="none" stroke="#1a5c3a" stroke-width="14" clip-path="url(#m-top)"/>
+      </svg>
+
+      <div class="logo-text-wrap">
+        <div class="logo-name">
+          ИМПЕРИЯ&nbsp;<span class="ln2">ФИНАНС</span>
+        </div>
+        <div class="logo-tagline">Финансовая устойчивость бизнеса</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══ HERO ══ -->
+  <section class="hero container">
+    <div class="badge">Аутсорсинг финансового сопровождения</div>
+    <h1>Финансовое&nbsp;здоровье<br>вашего бизнеса</h1>
+    <p class="hero-sub">
+      Полное финансовое сопровождение компании под ключ — от бухгалтерии до налоговой защиты.
+      Вы управляете бизнесом, мы берём на себя всё остальное.
+    </p>
+    <div class="services-line">
+      <span>Бухгалтерский учёт</span>
+      <span>Налоговый учёт</span>
+      <span>Кадровый учёт</span>
+      <span>Воинский учёт</span>
+    </div>
+    <div class="cta-wrap">
+      <a href="tel:+79616226777" class="cta-btn">Получить консультацию</a>
+    </div>
+    <div class="contact-links">
+      <a href="tel:+79616226777">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.1 1.18 2 2 0 012.08 0h3a2 2 0 012 1.72c.12 1 .35 1.96.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l1.27-.41a2 2 0 012.11.45c.85.35 1.8.58 2.81.7A2 2 0 0122 16.92z"/></svg>
+        +7 961 622-67-77
+      </a>
+      <a href="https://im-fin.ru" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+        im-fin.ru
+      </a>
+      <a href="https://t.me/imfinsib" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+        @imfinsib
+      </a>
+      <a href="mailto:im-fin@mail.ru">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+        im-fin@mail.ru
+      </a>
+    </div>
+  </section>
+
+  <!-- ══ STATS ══ -->
+  <div class="stats-strip">
+    <div class="stats-grid">
+      <div class="stat reveal">
+        <div class="stat-num" data-target="150" data-suffix="+">0</div>
+        <div class="stat-label">клиентов на обслуживании</div>
+      </div>
+      <div class="stat reveal">
+        <div class="stat-num" data-target="7" data-suffix="+">0</div>
+        <div class="stat-label">лет на рынке</div>
+      </div>
+      <div class="stat reveal">
+        <div class="stat-num" data-zero="true">0</div>
+        <div class="stat-label">штрафов у наших клиентов</div>
+      </div>
+      <div class="stat reveal">
+        <div class="stat-num" data-target="98" data-suffix="%">0</div>
+        <div class="stat-label">клиентов рекомендуют нас</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ADVANTAGES ══ -->
+  <section class="container">
+    <p class="section-title reveal">3 причины выбрать нас</p>
+    <p class="section-sub reveal">Преимущества, которые работают на ваш бизнес каждый день</p>
+    <div class="cards">
+      <div class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M3 9.5L12 4L21 9.5V20C21 20.55 20.55 21 20 21H4C3.45 21 3 20.55 3 20V9.5Z" stroke="#c43050" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9 21V13H15V21" stroke="#e8a0ac" stroke-width="1.8" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h3>Финансовый фундамент бизнеса</h3>
+        <p>Выстраиваем прочную финансовую структуру: корректный учёт, чёткие отчёты, прозрачные данные. Вы в любой момент знаете реальное состояние дел и принимаете решения на основе цифр, а не ощущений.</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 2L4 6V12C4 16.42 7.58 20.65 12 22C16.42 20.65 20 16.42 20 12V6L12 2Z" stroke="#c43050" stroke-width="1.8" stroke-linejoin="round"/>
+            <path d="M9 12L11 14L15 10" stroke="#e8a0ac" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h3>Безопасность и защита</h3>
+        <p>Минимизируем налоговые риски, следим за изменениями законодательства и предупреждаем проблемы до того, как они возникнут. Штрафы, проверки и ошибки в документах — больше не ваша головная боль.</p>
+      </div>
+      <div class="card reveal">
+        <div class="card-icon">
+          <svg viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="9" stroke="#c43050" stroke-width="1.8"/>
+            <path d="M12 7V12L15 15" stroke="#e8a0ac" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <h3>Экономия времени и ресурсов</h3>
+        <p>Нет расходов на штатного бухгалтера, больничных и отпускных. Вы платите только за результат и получаете команду профессионалов по цене одного сотрудника — без простоев и ошибок.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider container">
+
+  <!-- ══ HOW IT WORKS ══ -->
+  <section class="container">
+    <p class="section-title reveal">Как мы работаем</p>
+    <p class="section-sub reveal">От первого звонка до полного порядка в финансах — за 3 шага</p>
+    <div class="steps">
+      <div class="step reveal">
+        <div class="step-num">1</div>
+        <h4>Бесплатная консультация</h4>
+        <p>Разбираемся в вашей ситуации, выявляем слабые места в учёте и предлагаем оптимальный пакет услуг без скрытых платежей.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">2</div>
+        <h4>Принимаем дела</h4>
+        <p>Аудит текущего учёта, приём документов, подключение к системам. Вы не тратите на это ни минуты рабочего времени.</p>
+      </div>
+      <div class="step reveal">
+        <div class="step-num">3</div>
+        <h4>Работаем — вы растёте</h4>
+        <p>Ведём учёт, сдаём отчёты, консультируем. Вы получаете чёткие цифры и свободное время для развития бизнеса.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider container">
+
+  <!-- ══ FOR WHOM ══ -->
+  <section class="container">
+    <p class="section-title reveal">Для кого это подходит</p>
+    <p class="section-sub reveal">Работаем с малым и средним бизнесом, которому важен порядок в финансах</p>
+    <div class="audience">
+      <div class="aud-card reveal">
+        <div class="aud-title">Малый бизнес <span class="aud-tag">ИП / ООО</span></div>
+        <p>Аутсорсинг позволяет сэкономить на содержании бухгалтера в штате и получить полный порядок во всех документах с первого дня — без лишних затрат.</p>
+      </div>
+      <div class="aud-card reveal">
+        <div class="aud-title">Средний бизнес <span class="aud-tag">Рост</span></div>
+        <p>Когда компания растёт, финансовая нагрузка увеличивается. Мы масштабируемся вместе с вами — берём на себя весь учёт, пока вы занимаетесь развитием.</p>
+      </div>
+      <div class="aud-card reveal">
+        <div class="aud-title">Почему выгодно? <span class="aud-tag">Выгода</span></div>
+        <p>Штатный бухгалтер — зарплата, налоги, отпуска и риск ошибки. Аутсорсинг — фиксированная стоимость, профессиональная команда и полная ответственность за результат.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider container">
+
+  <!-- ══ REVIEWS ══ -->
+  <section class="container">
+    <p class="section-title reveal">Что говорят клиенты</p>
+    <p class="section-sub reveal">Реальные истории — реальный результат</p>
+    <div class="reviews">
+      <div class="review-card reveal">
+        <div class="review-stars">
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="review-text">Передали бухгалтерию год назад — с тех пор не знаем проблем. Отчёты сдаются вовремя, на все вопросы отвечают быстро. Наконец-то могу сосредоточиться на продажах, а не на бумагах.</p>
+        <div class="review-author">
+          <div class="review-avatar av-1">АК</div>
+          <div><div class="review-name">Алексей К.</div><div class="review-role">Директор, ООО «СтройСервис»</div></div>
+        </div>
+      </div>
+
+      <div class="review-card reveal">
+        <div class="review-stars">
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="review-text">Пришла с полным хаосом в документах — за два месяца всё привели в порядок. Налоговая проверка прошла без единого замечания. Работаем уже три года, никуда не уйду.</p>
+        <div class="review-author">
+          <div class="review-avatar av-2">МВ</div>
+          <div><div class="review-name">Марина В.</div><div class="review-role">ИП, сеть кофеен</div></div>
+        </div>
+      </div>
+
+      <div class="review-card reveal">
+        <div class="review-stars">
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="review-text">Особенно ценю — всегда на связи. Написал в воскресенье вечером с вопросом по воинскому учёту — ответили в течение часа. Такой уровень сервиса редко встретишь.</p>
+        <div class="review-author">
+          <div class="review-avatar av-3">ДП</div>
+          <div><div class="review-name">Дмитрий П.</div><div class="review-role">Генеральный директор, ООО «ТехноЛог»</div></div>
+        </div>
+      </div>
+
+      <div class="review-card reveal">
+        <div class="review-stars">
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <svg viewBox="0 0 24 24" fill="#f0b429"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+        </div>
+        <p class="review-text">Раньше тратила по 3 дня в месяц на бухгалтерию сама. Теперь это время полностью освободилось. Стоимость аутсорсинга окупилась уже в первый месяц — только на зарплате сэкономили.</p>
+        <div class="review-author">
+          <div class="review-avatar av-4">ОС</div>
+          <div><div class="review-name">Ольга С.</div><div class="review-role">ИП, интернет-магазин</div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider container">
+
+  <!-- ══ FAQ ══ -->
+  <section class="container">
+    <p class="section-title reveal">Частые вопросы</p>
+    <p class="section-sub reveal">Отвечаем на самое важное</p>
+    <div class="faq reveal">
+      <div class="faq-item">
+        <div class="faq-q">Сколько стоят ваши услуги?
+          <span class="faq-icon"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></span>
+        </div>
+        <div class="faq-a">Стоимость зависит от объёма операций, системы налогообложения и набора услуг. После бесплатной консультации мы подберём оптимальный пакет. Минимальная стоимость значительно ниже содержания штатного бухгалтера.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Как быстро можно начать работать?
+          <span class="faq-icon"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></span>
+        </div>
+        <div class="faq-a">Приём дел занимает от 1 до 3 рабочих дней. Если у вас горящие сроки — например, приближается сдача отчётности — можем ускорить. Позвоните, и мы обсудим вашу ситуацию.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Вы несёте ответственность за ошибки?
+          <span class="faq-icon"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></span>
+        </div>
+        <div class="faq-a">Да. В договоре прописана наша материальная ответственность. Если по нашей вине возник штраф или пени — мы их оплачиваем. За 7 лет работы такого не случалось ни разу.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Мы можем потерять доступ к своим данным?
+          <span class="faq-icon"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></span>
+        </div>
+        <div class="faq-a">Нет. Все данные принадлежат вам. При расторжении договора передаём всю документацию и базы данных в полном объёме в течение 5 рабочих дней.</div>
+      </div>
+      <div class="faq-item">
+        <div class="faq-q">Что входит в воинский учёт?
+          <span class="faq-icon"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="6" y1="1" x2="6" y2="11"/><line x1="1" y1="6" x2="11" y2="6"/></svg></span>
+        </div>
+        <div class="faq-a">Ведение картотеки военнообязанных, отчётность в военкомат, уведомления о приёме и увольнении, контроль актуальности данных. Следим за изменениями законодательства — с 2024 года требования ужесточились, поможем избежать штрафов.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ FINAL CTA ══ -->
+  <section class="final-cta" id="contact">
+    <h2 class="reveal">Готовы навести порядок<br>в финансах?</h2>
+    <p class="reveal">Первая консультация — бесплатно. Свяжитесь с нами любым удобным способом, и мы предложим решение уже сегодня.</p>
+    <div class="cta-wrap reveal">
+      <a href="tel:+79616226777" class="cta-btn">Позвонить сейчас</a>
+    </div>
+    <div class="contact-links reveal">
+      <a href="tel:+79616226777">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.1 1.18 2 2 0 012.08 0h3a2 2 0 012 1.72c.12 1 .35 1.96.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l1.27-.41a2 2 0 012.11.45c.85.35 1.8.58 2.81.7A2 2 0 0122 16.92z"/></svg>
+        +7 961 622-67-77
+      </a>
+      <a href="https://im-fin.ru" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+        im-fin.ru
+      </a>
+      <a href="https://t.me/imfinsib" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+        Telegram
+      </a>
+      <a href="mailto:im-fin@mail.ru">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#e8a0ac" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>
+        im-fin@mail.ru
+      </a>
+    </div>
+  </section>
+
+  <!-- ══ FOOTER ══ -->
+  <footer>
+    <div class="footer-contacts">
+      <a href="tel:+79616226777">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.1 1.18 2 2 0 012.08 0h3a2 2 0 012 1.72c.12 1 .35 1.96.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l1.27-.41a2 2 0 012.11.45c.85.35 1.8.58 2.81.7A2 2 0 0122 16.92z"/></svg>
+        +7 961 622-67-77
+      </a>
+      <a href="https://im-fin.ru" target="_blank" rel="noopener">im-fin.ru</a>
+      <a href="https://t.me/imfinsib" target="_blank" rel="noopener">Telegram: @imfinsib</a>
+      <a href="mailto:im-fin@mail.ru">im-fin@mail.ru</a>
+    </div>
+    <p class="footer-copy">© 2026 Империя Финанс · Финансовое сопровождение на аутсорсинге</p>
+  </footer>
+
+  <!-- Float button mobile -->
+  <a href="tel:+79616226777" class="float-btn" aria-label="Позвонить">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.1 1.18 2 2 0 012.08 0h3a2 2 0 012 1.72c.12 1 .35 1.96.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.18 6.18l1.27-.41a2 2 0 012.11.45c.85.35 1.8.58 2.81.7A2 2 0 0122 16.92z"/></svg>
+  </a>
+
+  <script>
+    /* Reveal */
+    const revObs = new IntersectionObserver(entries => {
+      entries.forEach((e, i) => {
+        if (e.isIntersecting) {
+          setTimeout(() => e.target.classList.add('visible'), i * 80);
+          revObs.unobserve(e.target);
+        }
+      });
+    }, { threshold: 0.1 });
+    document.querySelectorAll('.reveal').forEach(el => revObs.observe(el));
+
+    /* Sticky header */
+    const sticky = document.getElementById('stickyHeader');
+    window.addEventListener('scroll', () => {
+      sticky.classList.toggle('show', window.scrollY > 320);
+    }, { passive: true });
+
+    /* Counters */
+    const cntObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (!e.isIntersecting) return;
+        const el = e.target;
+        cntObs.unobserve(el);
+        if (el.dataset.zero) { el.textContent = '0'; return; }
+        const target = parseInt(el.dataset.target);
+        const suffix = el.dataset.suffix || '';
+        if (isNaN(target)) return;
+        let v = 0;
+        const step = 16, inc = target / (1600 / step);
+        const t = setInterval(() => {
+          v = Math.min(v + inc, target);
+          el.textContent = Math.floor(v) + suffix;
+          if (v >= target) clearInterval(t);
+        }, step);
+      });
+    }, { threshold: 0.5 });
+    document.querySelectorAll('.stat-num').forEach(el => cntObs.observe(el));
+
+    /* FAQ */
+    document.querySelectorAll('.faq-q').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const item = btn.parentElement;
+        const open = item.classList.contains('open');
+        document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+        if (!open) item.classList.add('open');
+      });
+    });
+  </script>
+</body>
+</html>
