@@ -13,7 +13,8 @@ import logging
 from datetime import date, datetime
 
 from maxapi import Bot, Dispatcher
-from maxapi.filters import F, Command
+from maxapi.filters import F
+from maxapi.filters.command import Command
 from maxapi.types import MessageCreated, MessageCallback
 
 import database as db
@@ -1141,25 +1142,22 @@ async def _show_monthly_report(callback: MessageCallback):
 
 async def _send_excel_report(callback: MessageCallback):
     """
-    Генерирует Excel и сохраняет на диск.
-    Прямая отправка файла через maxapi не задокументирована —
-    уведомляем о пути к файлу, текстовый отчёт как fallback.
-    TODO: заменить на отправку файла когда будет подтверждён API.
+    Генерирует Excel, сохраняет на диск, сообщает путь к файлу.
+    Max Bot API не поддерживает отправку файлов — выводим путь и текстовый отчёт.
     """
     await callback.message.answer("⏳ Формирую Excel-отчёт...")
     try:
         filepath = await asyncio.to_thread(excel_report.generate_monthly_report)
-        filename = filepath.replace('\\', '/').split('/')[-1]
         await callback.message.answer(
             f"📊 Excel-отчёт сформирован!\n"
-            f"📁 Файл: <code>{filepath}</code>\n\n"
-            f"Скачайте с сервера или используйте текстовый отчёт:\n"
-            f"Меню → 📊 Отчёт за месяц (текст)",
+            f"📁 Файл сохранён: <code>{filepath}</code>\n\n"
+            f"Ниже — текстовая версия отчёта:",
             parse_mode='html'
         )
+        await _show_monthly_report(callback)
     except Exception as e:
         logger.error(f"Ошибка генерации Excel: {e}")
-        await callback.message.answer(f"❌ Ошибка: {e}")
+        await callback.message.answer(f"❌ Ошибка генерации отчёта: {e}")
 
 
 async def _show_kpi(callback: MessageCallback):

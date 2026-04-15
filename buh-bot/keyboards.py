@@ -1,7 +1,8 @@
 """
 Inline-клавиатуры для бота.
 """
-from maxapi.types import InlineKeyboardBuilder, CallbackButton, LinkButton
+from maxapi.utils.inline_keyboard import InlineKeyboardBuilder
+from maxapi.types import CallbackButton, LinkButton
 from calendar_data import TAX_SYSTEMS, ORG_TYPES, WORK_TYPES
 
 

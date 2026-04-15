@@ -327,13 +327,12 @@ def get_deadline(deadline_id: int):
 # ─── Логи напоминаний ─────────────────────────────────────────────────────────
 
 def was_reminder_sent(deadline_id: int, days_before: int) -> bool:
-    today = date.today().isoformat()
     with get_db() as conn:
         row = conn.execute(
             """SELECT id FROM reminder_logs
                WHERE deadline_id = ? AND days_before = ?
-                 AND sent_at >= ?""",
-            (deadline_id, days_before, today + ' 00:00:00')
+                 AND date(sent_at) = date('now')""",
+            (deadline_id, days_before)
         ).fetchone()
         return row is not None
 
@@ -462,43 +461,6 @@ def get_additional_works_for_company_month(company_id: int, year: int, month: in
                WHERE aw.company_id = ? AND aw.work_date >= ? AND aw.work_date < ?
                ORDER BY aw.work_date""",
             (company_id, start, end)
-        ).fetchall()
-
-
-# ─── Статистика для руководителя ──────────────────────────────────────────────
-
-def get_accountant_stats(year: int, month: int) -> list:
-    """KPI по каждому бухгалтеру за месяц."""
-    start = f"{year}-{month:02d}-01"
-    end = f"{year}-{month+1:02d}-01" if month < 12 else f"{year+1}-01-01"
-    with get_db() as conn:
-        return conn.execute(
-            """SELECT
-                a.id, a.name,
-                COUNT(DISTINCT c.id) as company_count,
-                (SELECT COUNT(*) FROM report_deadlines rd
-                 JOIN companies cc ON rd.company_id = cc.id
-                 WHERE cc.accountant_id = a.id
-                   AND rd.due_date >= ? AND rd.due_date < ?) as total_deadlines,
-                (SELECT COUNT(*) FROM report_deadlines rd
-                 JOIN companies cc ON rd.company_id = cc.id
-                 WHERE cc.accountant_id = a.id AND rd.status = 'done'
-                   AND rd.due_date >= ? AND rd.due_date < ?) as done_deadlines,
-                (SELECT COUNT(*) FROM report_deadlines rd
-                 JOIN companies cc ON rd.company_id = cc.id
-                 WHERE cc.accountant_id = a.id AND rd.status = 'overdue'
-                   AND rd.due_date >= ? AND rd.due_date < ?) as overdue_deadlines,
-                (SELECT COALESCE(SUM(aw.hours),0) FROM additional_works aw
-                 WHERE aw.accountant_id = a.id
-                   AND aw.work_date >= ? AND aw.work_date < ?) as extra_hours,
-                (SELECT COALESCE(SUM(aw.amount),0) FROM additional_works aw
-                 WHERE aw.accountant_id = a.id
-                   AND aw.work_date >= ? AND aw.work_date < ?) as extra_amount
-               FROM accountants a
-               LEFT JOIN companies c ON c.accountant_id = a.id AND c.is_active = 1
-               GROUP BY a.id, a.name
-               ORDER BY a.name""",
-            (start, end, start, end, start, end, start, end, start, end)
         ).fetchall()
 
 
