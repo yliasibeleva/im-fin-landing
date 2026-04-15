@@ -118,4 +118,4 @@ async def dashboard(request: Request, _=Depends(require_auth)):
 
 if __name__ == '__main__':
     print(f'Дашборд: http://localhost:{WEB_PORT}  |  логин: admin / {WEB_PASSWORD}')
-    uvicorn.run('web_app:app', host='127.0.0.1', port=WEB_PORT, reload=False)
+    uvicorn.run('web_app:app', host='0.0.0.0', port=WEB_PORT, reload=False)
