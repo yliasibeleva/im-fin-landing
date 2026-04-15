@@ -1,0 +1,7 @@
+buh-bot/.env
+buh-bot/data_storage/
+buh-bot/__pycache__/
+buh-bot/*.pyc
+node_modules/
+.netlify/
+*.zip
