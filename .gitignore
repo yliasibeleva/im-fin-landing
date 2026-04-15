@@ -5,3 +5,4 @@ buh-bot/*.pyc
 node_modules/
 .netlify/
 *.zip
+surge-deploy.js
