@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Империя Финанс — Дашборд</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --brand:   #7b1c2e;
+            --brand2:  #1a5c3a;
+        }
+        body { background: #f4f6f8; font-size: 0.88rem; }
+
+        /* Navbar */
+        .top-nav { background: var(--brand) !important; }
+        .top-nav .navbar-brand { color: #fff; font-weight: 700; font-size: 1.1rem; letter-spacing: .3px; }
+
+        /* Stat cards */
+        .stat-card { border: none; border-left: 4px solid var(--brand); border-radius: 8px; }
+        .stat-card.green  { border-left-color: var(--brand2); }
+        .stat-card.red    { border-left-color: #dc3545; }
+        .stat-value { font-size: 2rem; font-weight: 700; line-height: 1; }
+
+        /* Card headers */
+        .ch-primary   { background: var(--brand);  color: #fff; }
+        .ch-secondary { background: var(--brand2); color: #fff; }
+        .ch-danger    { background: #dc3545;        color: #fff; }
+
+        /* Tables */
+        .table-sm td, .table-sm th { padding: .35rem .6rem; vertical-align: middle; }
+        .row-overdue { background-color: #fff0f0 !important; }
+        .row-warn    { background-color: #fffbef !important; }
+
+        /* Badges */
+        .b-osn  { background: #6f42c1; }
+        .b-usn  { background: #0d6efd; }
+        .b-eshn { background: #198754; }
+        .b-psn  { background: #fd7e14; }
+
+        /* Progress */
+        .progress { height: 16px; border-radius: 4px; }
+        .progress-bar { font-size: .75rem; }
+
+        section { scroll-margin-top: 68px; }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar top-nav sticky-top py-2 shadow-sm">
+    <div class="container-fluid px-4">
+        <span class="navbar-brand">Империя Финанс — Управление</span>
+        <span class="text-white-50 small">{{ today }}</span>
+    </div>
+</nav>
+
+<div class="container-fluid py-3 px-4">
+
+    <!-- ── Stat cards ──────────────────────────────────────────────────────── -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3">
+            <div class="card stat-card green h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Компаний</div>
+                    <div class="stat-value" style="color: var(--brand2)">{{ stats.companies }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Дедлайнов на 7 дней</div>
+                    <div class="stat-value" style="color: var(--brand)">{{ stats.upcoming }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card red h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Просроченных</div>
+                    <div class="stat-value text-danger">{{ stats.overdue }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3">
+            <div class="card stat-card h-100">
+                <div class="card-body py-3">
+                    <div class="text-muted small mb-1">Бухгалтеров</div>
+                    <div class="stat-value text-secondary">{{ stats.accountants }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Просроченные ────────────────────────────────────────────────────── -->
+    {% if overdue %}
+    <section id="overdue" class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-danger d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-exclamation-triangle-fill me-2"></i>Просроченные дедлайны</span>
+                <span class="badge bg-white text-danger fw-bold">{{ overdue|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Компания</th>
+                            <th>Отчёт</th>
+                            <th>Срок</th>
+                            <th>Просрочено</th>
+                            <th>Бухгалтер</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for dl in overdue %}
+                        <tr class="row-overdue">
+                            <td><strong>{{ dl.company_name }}</strong></td>
+                            <td>{{ dl.report_name }}</td>
+                            <td class="text-danger fw-bold">{{ dl.due_fmt }}</td>
+                            <td><span class="badge bg-danger">{{ dl.days_over }} дн.</span></td>
+                            <td>{{ dl.accountant_name or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- ── Дедлайны на 7 дней ─────────────────────────────────────────────── -->
+    <section id="upcoming" class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-calendar-week me-2"></i>Дедлайны на 7 дней</span>
+                <span class="badge bg-white text-dark fw-bold">{{ upcoming|length }}</span>
+            </div>
+            <div class="card-body p-0">
+            {% if upcoming %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Срок</th>
+                            <th>Осталось</th>
+                            <th>Компания</th>
+                            <th>Отчёт</th>
+                            <th>Бухгалтер</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for dl in upcoming %}
+                        <tr {% if dl.days_left <= 1 %}class="row-overdue"{% elif dl.days_left <= 3 %}class="row-warn"{% endif %}>
+                            <td><strong>{{ dl.due_fmt }}</strong></td>
+                            <td>
+                                {% if dl.days_left == 0 %}
+                                    <span class="badge bg-danger">Сегодня!</span>
+                                {% elif dl.days_left == 1 %}
+                                    <span class="badge bg-danger">Завтра</span>
+                                {% elif dl.days_left <= 3 %}
+                                    <span class="badge bg-warning text-dark">{{ dl.days_left }} дн.</span>
+                                {% else %}
+                                    <span class="badge bg-info text-dark">{{ dl.days_left }} дн.</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ dl.company_name }}</td>
+                            <td>{{ dl.report_name }}</td>
+                            <td>{{ dl.accountant_name or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="bi bi-check-circle-fill text-success me-2"></i>Дедлайнов на 7 дней нет
+                </div>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ── KPI бухгалтеров ────────────────────────────────────────────────── -->
+    <section id="kpi" class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-secondary d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-bar-chart-fill me-2"></i>KPI бухгалтеров — {{ month_label }}</span>
+            </div>
+            <div class="card-body p-0">
+            {% if kpi %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Бухгалтер</th>
+                            <th class="text-center">Компаний</th>
+                            <th class="text-center">Дедлайнов</th>
+                            <th class="text-center">Выполнено</th>
+                            <th style="min-width:120px">% выполнения</th>
+                            <th class="text-center">Просрочено</th>
+                            <th class="text-center">Ошибок</th>
+                            <th class="text-center">Доп. часы</th>
+                            <th class="text-center">Доп. сумма</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for s in kpi %}
+                        <tr>
+                            <td><strong>{{ s.name }}</strong></td>
+                            <td class="text-center">{{ s.company_count or 0 }}</td>
+                            <td class="text-center">{{ s.total_deadlines or 0 }}</td>
+                            <td class="text-center text-success fw-bold">{{ s.done_deadlines or 0 }}</td>
+                            <td>
+                                {% set pct = s.pct_done %}
+                                <div class="progress">
+                                    <div class="progress-bar
+                                        {% if pct >= 80 %}bg-success
+                                        {% elif pct >= 50 %}bg-warning
+                                        {% else %}bg-danger{% endif %}"
+                                        style="width: {{ [pct, 5]|max }}%">{{ pct }}%</div>
+                                </div>
+                            </td>
+                            <td class="text-center {% if s.overdue_deadlines %}text-danger fw-bold{% endif %}">
+                                {{ s.overdue_deadlines or 0 }}
+                            </td>
+                            <td class="text-center {% if s.error_count %}text-danger fw-bold{% endif %}">
+                                {{ s.error_count or 0 }}
+                            </td>
+                            <td class="text-center">{{ s.extra_hours or 0 }} ч</td>
+                            <td class="text-center">{{ (s.extra_amount or 0)|rub }} ₽</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">Нет данных за текущий месяц</div>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- ── Компании ───────────────────────────────────────────────────────── -->
+    <section id="companies" class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-building me-2"></i>Компании</span>
+                <span class="badge bg-white text-dark fw-bold">{{ companies|length }}</span>
+            </div>
+            <div class="card-body p-0">
+            {% if companies %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Название</th>
+                            <th>ИНН</th>
+                            <th>СНО</th>
+                            <th>Тип</th>
+                            <th class="text-center">Сотрудники</th>
+                            <th class="text-center">Воинский учёт</th>
+                            <th>Бухгалтер</th>
+                            <th class="text-center">Max-группа</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    {% for c in companies %}
+                        <tr>
+                            <td><strong>{{ c.name }}</strong></td>
+                            <td class="text-muted">{{ c.inn or '—' }}</td>
+                            <td>
+                                {% if c.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>
+                                {% elif c.tax_system == 'УСН' %}<span class="badge b-usn">УСН</span>
+                                {% elif c.tax_system == 'ЕСХН' %}<span class="badge b-eshn">ЕСХН</span>
+                                {% elif c.tax_system == 'ПСН' %}<span class="badge b-psn">ПСН</span>
+                                {% else %}<span class="badge bg-secondary">{{ c.tax_system }}</span>{% endif %}
+                            </td>
+                            <td>{{ c.org_type or '—' }}</td>
+                            <td class="text-center">
+                                {% if c.has_employees %}<i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if c.has_military %}<i class="bi bi-check-circle-fill text-success"></i>
+                                {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
+                            </td>
+                            <td>{{ c.accountant_name or '—' }}</td>
+                            <td class="text-center">
+                                {% if c.max_group_id %}<i class="bi bi-chat-dots-fill text-primary"></i>
+                                {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">Компаний нет</div>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+
+</div><!-- /container -->
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
