@@ -308,7 +308,7 @@
                             data-name="{{ c.name | upper }}">
                             <td>
                                 <a href="/company/{{ c.id }}" class="fw-bold text-decoration-none"
-                                   style="color:var(--brand);text-transform:uppercase">{{ c.name }}</a>
+                                   style="color:var(--brand);text-transform:uppercase">{% if c.org_type %}{{ c.org_type }} {% endif %}{{ c.name }}</a>
                             </td>
                             <td>
                                 {% if c.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>
