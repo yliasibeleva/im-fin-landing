@@ -99,21 +99,24 @@ async def dashboard(request: Request, _=Depends(require_auth)):
         d['pct_done'] = round(done / total * 100) if total > 0 else 0
         kpi.append(d)
 
-    return templates.TemplateResponse('dashboard.html', {
-        'request':     request,
-        'companies':   companies,
-        'upcoming':    upcoming,
-        'overdue':     overdue,
-        'kpi':         kpi,
-        'today':       today.strftime('%d.%m.%Y'),
-        'month_label': today.strftime('%B %Y'),
-        'stats': {
-            'companies':  len(companies),
-            'upcoming':   len(upcoming),
-            'overdue':    len(overdue),
-            'accountants': len(kpi),
-        },
-    })
+    return templates.TemplateResponse(
+        request=request,
+        name='dashboard.html',
+        context={
+            'companies':   companies,
+            'upcoming':    upcoming,
+            'overdue':     overdue,
+            'kpi':         kpi,
+            'today':       today.strftime('%d.%m.%Y'),
+            'month_label': today.strftime('%B %Y'),
+            'stats': {
+                'companies':  len(companies),
+                'upcoming':   len(upcoming),
+                'overdue':    len(overdue),
+                'accountants': len(kpi),
+            },
+        }
+    )
 
 
 if __name__ == '__main__':
