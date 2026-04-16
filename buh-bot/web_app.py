@@ -108,7 +108,10 @@ async def dashboard(request: Request, _=Depends(require_auth)):
             'overdue':     overdue,
             'kpi':         kpi,
             'today':       today.strftime('%d.%m.%Y'),
-            'month_label': today.strftime('%B %Y'),
+            'month_label': today.strftime('%Y') + ' ' + [
+            '', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+            'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
+        ][today.month],
             'stats': {
                 'companies':  len(companies),
                 'upcoming':   len(upcoming),
