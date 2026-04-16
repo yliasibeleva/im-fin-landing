@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Бухгалтеры — Империя Финанс</title>
+    <title>Сотрудники — Империя Финанс</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <style>
@@ -15,6 +15,8 @@
         .top-nav a:hover { color: #fff; }
         .ch-primary { background: var(--brand); color: #fff; }
         .table-sm td, .table-sm th { padding: .35rem .6rem; vertical-align: middle; }
+        .badge-remote { background: #0d6efd; }
+        .badge-office { background: #198754; }
     </style>
 </head>
 <body>
@@ -23,33 +25,60 @@
     <div class="container-fluid px-4">
         <span class="navbar-brand">
             <a href="/" class="me-2"><i class="bi bi-arrow-left"></i></a>
-            Бухгалтеры
+            Сотрудники
         </span>
         <span class="text-white-50 small">{{ today }}</span>
     </div>
 </nav>
 
-<div class="container-fluid py-3 px-4" style="max-width:700px">
+<div class="container-fluid py-3 px-4">
 
     <div class="card shadow-sm mb-4">
         <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
-            <span><i class="bi bi-people-fill me-2"></i>Список бухгалтеров</span>
+            <span><i class="bi bi-people-fill me-2"></i>Список сотрудников</span>
             <span class="badge bg-white text-dark fw-bold">{{ accountants|length }}</span>
         </div>
         <div class="card-body p-0">
             <table class="table table-sm table-hover mb-0">
                 <thead class="table-light">
-                    <tr><th>#</th><th>Имя</th><th>Max ID</th><th></th></tr>
+                    <tr>
+                        <th>ФИО</th>
+                        <th>Должность</th>
+                        <th>Телефон</th>
+                        <th>Telegram</th>
+                        <th>Статус</th>
+                        <th></th>
+                    </tr>
                 </thead>
                 <tbody>
                 {% for a in accountants %}
                 <tr>
-                    <td class="text-muted">{{ a.id }}</td>
                     <td><strong>{{ a.name }}</strong></td>
-                    <td class="text-muted">{{ a.max_user_id or '—' }}</td>
+                    <td class="text-muted">{{ a.position or '—' }}</td>
                     <td>
+                        {% if a.phone %}
+                        <a href="tel:{{ a.phone }}" class="text-decoration-none">{{ a.phone }}</a>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if a.tg and a.tg.startswith('@') %}
+                        <a href="https://t.me/{{ a.tg[1:] }}" target="_blank" class="text-decoration-none text-primary">{{ a.tg }}</a>
+                        {% else %}{{ a.tg or '—' }}{% endif %}
+                    </td>
+                    <td>
+                        {% if a.is_remote %}
+                        <span class="badge badge-remote">Удалённый</span>
+                        {% else %}
+                        <span class="badge badge-office">Штатный</span>
+                        {% endif %}
+                    </td>
+                    <td style="white-space:nowrap">
+                        <button class="btn btn-sm btn-outline-secondary py-0 px-2 me-1"
+                                data-bs-toggle="modal" data-bs-target="#editModal{{ a.id }}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
                         <form method="post" action="/accountants/{{ a.id }}/delete"
-                              onsubmit="return confirm('Удалить {{ a.name }}?')">
+                              onsubmit="return confirm('Удалить {{ a.name }}?')" class="d-inline">
                             <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
                                 <i class="bi bi-trash"></i>
                             </button>
@@ -65,20 +94,88 @@
     <!-- Форма добавления -->
     <div class="card shadow-sm">
         <div class="card-header ch-primary py-2">
-            <i class="bi bi-person-plus-fill me-2"></i>Добавить бухгалтера
+            <i class="bi bi-person-plus-fill me-2"></i>Добавить сотрудника
         </div>
         <div class="card-body">
-            <form method="post" action="/accountants/add" class="d-flex gap-2">
-                <input type="text" name="name" class="form-control" placeholder="Фамилия И.О." required>
-                <button type="submit" class="btn btn-primary flex-shrink-0"
-                        style="background:var(--brand);border-color:var(--brand)">
-                    <i class="bi bi-plus-lg me-1"></i>Добавить
-                </button>
+            <form method="post" action="/accountants/add" class="row g-2">
+                <div class="col-md-3">
+                    <input type="text" name="name" class="form-control" placeholder="ФИО *" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" name="position" class="form-control" placeholder="Должность">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="phone" class="form-control" placeholder="Телефон">
+                </div>
+                <div class="col-md-2">
+                    <input type="text" name="tg" class="form-control" placeholder="Telegram">
+                </div>
+                <div class="col-md-1">
+                    <select name="is_remote" class="form-select">
+                        <option value="0">Штат</option>
+                        <option value="1">Удал.</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <button type="submit" class="btn btn-primary w-100"
+                            style="background:var(--brand);border-color:var(--brand)">
+                        <i class="bi bi-plus-lg"></i>
+                    </button>
+                </div>
             </form>
         </div>
     </div>
 
 </div>
+
+<!-- Модалы редактирования -->
+{% for a in accountants %}
+<div class="modal fade" id="editModal{{ a.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" action="/accountants/{{ a.id }}/edit">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--brand);color:#fff">
+                <h5 class="modal-title">{{ a.name }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">ФИО</label>
+                    <input type="text" name="name" class="form-control" value="{{ a.name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Должность</label>
+                    <input type="text" name="position" class="form-control" value="{{ a.position or '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Телефон</label>
+                    <input type="text" name="phone" class="form-control" value="{{ a.phone or '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control" value="{{ a.email or '' }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Telegram</label>
+                    <input type="text" name="tg" class="form-control" value="{{ a.tg or '' }}" placeholder="@username">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Статус</label>
+                    <select name="is_remote" class="form-select">
+                        <option value="0" {% if not a.is_remote %}selected{% endif %}>Штатный (офис)</option>
+                        <option value="1" {% if a.is_remote %}selected{% endif %}>Удалённый</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary" style="background:var(--brand);border-color:var(--brand)">Сохранить</button>
+            </div>
+        </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>

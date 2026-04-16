@@ -45,9 +45,17 @@
     <div class="card shadow-sm mb-4">
         <div class="card-header ch-primary py-2 d-flex justify-content-between align-items-center">
             <span><i class="bi bi-building me-2"></i>Информация о компании</span>
-            <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#editCompanyModal">
-                <i class="bi bi-pencil me-1"></i>Редактировать
-            </button>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#editCompanyModal">
+                    <i class="bi bi-pencil me-1"></i>Редактировать
+                </button>
+                <form method="post" action="/company/{{ company.id }}/delete"
+                      onsubmit="return confirm('Удалить компанию {{ company.name }}?')">
+                    <button type="submit" class="btn btn-sm btn-outline-danger btn-light">
+                        <i class="bi bi-trash me-1"></i>Удалить
+                    </button>
+                </form>
+            </div>
         </div>
         <div class="card-body">
             <div class="row g-3">
@@ -70,8 +78,16 @@
                     <div class="fw-bold">{{ company.org_type or '—' }}</div>
                 </div>
                 <div class="col-6 col-md-3">
-                    <div class="text-muted small">Бухгалтер</div>
+                    <div class="text-muted small">Главный бухгалтер</div>
                     <div class="fw-bold">{{ company.accountant_name or '—' }}</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">Бухгалтер по з/п</div>
+                    <div class="fw-bold">{{ company.payroll_accountant_name or '—' }}</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">Операционист</div>
+                    <div class="fw-bold">{{ company.operator_name or '—' }}</div>
                 </div>
                 <div class="col-6 col-md-3">
                     <div class="text-muted small">Сотрудники</div>
@@ -89,6 +105,30 @@
                     <div>{{ company.work_standard }}</div>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Описание -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header ch-secondary py-2 d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-file-text me-2"></i>Описание компании</span>
+            <button class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#descEdit">
+                <i class="bi bi-pencil me-1"></i>Редактировать
+            </button>
+        </div>
+        <div class="card-body">
+            {% if company.description %}
+            <p class="mb-2" style="white-space:pre-wrap">{{ company.description }}</p>
+            {% else %}
+            <p class="text-muted mb-2">Описание не добавлено</p>
+            {% endif %}
+            <div class="collapse" id="descEdit">
+                <form method="post" action="/company/{{ company.id }}/description" class="mt-2">
+                    <textarea name="description" class="form-control mb-2" rows="5"
+                              placeholder="Введите описание компании...">{{ company.description or '' }}</textarea>
+                    <button type="submit" class="btn btn-sm btn-success">Сохранить</button>
+                </form>
             </div>
         </div>
     </div>
@@ -272,11 +312,29 @@
                     </select>
                 </div>
                 <div class="mb-3">
-                    <label class="form-label">Бухгалтер</label>
+                    <label class="form-label">Главный бухгалтер</label>
                     <select name="accountant_id" class="form-select">
                         <option value="">— не назначен —</option>
                         {% for a in accountants %}
                         <option value="{{ a.id }}" {% if company.accountant_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Бухгалтер по з/п</label>
+                    <select name="payroll_accountant_id" class="form-select">
+                        <option value="">— не назначен —</option>
+                        {% for a in accountants %}
+                        <option value="{{ a.id }}" {% if company.payroll_accountant_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Операционист</label>
+                    <select name="operator_id" class="form-select">
+                        <option value="">— не назначен —</option>
+                        {% for a in accountants %}
+                        <option value="{{ a.id }}" {% if company.operator_id == a.id %}selected{% endif %}>{{ a.name }}</option>
                         {% endfor %}
                     </select>
                 </div>

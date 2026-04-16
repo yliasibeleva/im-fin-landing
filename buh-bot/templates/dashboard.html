@@ -248,28 +248,68 @@
         <div class="card shadow-sm">
             <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
                 <span><i class="bi bi-building me-2"></i>Компании</span>
-                <span class="badge bg-white text-dark fw-bold">{{ companies|length }}</span>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-white text-dark fw-bold" id="co-count">{{ companies|length }}</span>
+                    <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addCompanyModal">
+                        <i class="bi bi-plus-lg me-1"></i>Добавить
+                    </button>
+                </div>
             </div>
+
+            <!-- Фильтры -->
+            <div class="px-3 pt-2 pb-1 border-bottom bg-white">
+                <div class="row g-2 align-items-center">
+                    <div class="col-md-4">
+                        <input type="text" id="filterName" class="form-control form-control-sm"
+                               placeholder="Поиск по названию...">
+                    </div>
+                    <div class="col-md-4">
+                        <select id="filterAcc" class="form-select form-select-sm">
+                            <option value="">Все бухгалтеры</option>
+                            {% set seen = [] %}
+                            {% for c in companies %}
+                                {% if c.accountant_name and c.accountant_name not in seen %}
+                                    {% set _ = seen.append(c.accountant_name) %}
+                                    <option>{{ c.accountant_name }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="btn-group btn-group-sm w-100" role="group" id="tabGroup">
+                            <button type="button" class="btn btn-outline-secondary active" data-tab="all">Все</button>
+                            <button type="button" class="btn btn-outline-secondary" data-tab="ooo">ООО</button>
+                            <button type="button" class="btn btn-outline-secondary" data-tab="ip">ИП</button>
+                            <button type="button" class="btn btn-outline-secondary" data-tab="emp">С сотр.</button>
+                            <button type="button" class="btn btn-outline-secondary" data-tab="noemp">Без сотр.</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="card-body p-0">
             {% if companies %}
-                <table class="table table-sm table-hover mb-0">
+                <table class="table table-sm table-hover mb-0" id="coTable">
                     <thead class="table-light">
                         <tr>
                             <th>Название</th>
-                            <th>ИНН</th>
                             <th>СНО</th>
                             <th>Тип</th>
-                            <th class="text-center">Сотрудники</th>
-                            <th class="text-center">Воинский учёт</th>
-                            <th>Бухгалтер</th>
-                            <th class="text-center">Max-группа</th>
+                            <th class="text-center">Сотр.</th>
+                            <th>Гл. бухгалтер</th>
+                            <th>Бух. по з/п</th>
+                            <th>Операционист</th>
                         </tr>
                     </thead>
                     <tbody>
                     {% for c in companies %}
-                        <tr>
-                            <td><a href="/company/{{ c.id }}" class="fw-bold text-decoration-none" style="color:var(--brand)">{{ c.name }}</a></td>
-                            <td class="text-muted">{{ c.inn or '—' }}</td>
+                        <tr data-type="{{ c.org_type }}" data-emp="{{ c.has_employees }}"
+                            data-acc="{{ c.accountant_name or '' }}"
+                            data-name="{{ c.name | upper }}">
+                            <td>
+                                <a href="/company/{{ c.id }}" class="fw-bold text-decoration-none"
+                                   style="color:var(--brand);text-transform:uppercase">{{ c.name }}</a>
+                            </td>
                             <td>
                                 {% if c.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>
                                 {% elif c.tax_system == 'УСН' %}<span class="badge b-usn">УСН</span>
@@ -282,19 +322,14 @@
                                 {% if c.has_employees %}<i class="bi bi-check-circle-fill text-success"></i>
                                 {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
                             </td>
-                            <td class="text-center">
-                                {% if c.has_military %}<i class="bi bi-check-circle-fill text-success"></i>
-                                {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
-                            </td>
                             <td>{{ c.accountant_name or '—' }}</td>
-                            <td class="text-center">
-                                {% if c.max_group_id %}<i class="bi bi-chat-dots-fill text-primary"></i>
-                                {% else %}<i class="bi bi-dash text-muted"></i>{% endif %}
-                            </td>
+                            <td>{{ c.payroll_accountant_name or '—' }}</td>
+                            <td>{{ c.operator_name or '—' }}</td>
                         </tr>
                     {% endfor %}
                     </tbody>
                 </table>
+                <div id="noResults" class="p-4 text-center text-muted d-none">Ничего не найдено</div>
             {% else %}
                 <div class="p-4 text-center text-muted">Компаний нет</div>
             {% endif %}
@@ -304,6 +339,112 @@
 
 </div><!-- /container -->
 
+<!-- Модал: добавить компанию -->
+<div class="modal fade" id="addCompanyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="post" action="/companies/add">
+        <div class="modal-content">
+            <div class="modal-header" style="background:var(--brand);color:#fff">
+                <h5 class="modal-title"><i class="bi bi-building me-2"></i>Новая компания</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Название <span class="text-danger">*</span></label>
+                    <input type="text" name="name" class="form-control" required placeholder="Например: РОМАШКА">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Тип организации</label>
+                    <select name="org_type" class="form-select">
+                        <option value="ООО">ООО</option>
+                        <option value="ИП">ИП</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">СНО</label>
+                    <select name="tax_system" class="form-select">
+                        {% for s in ['УСН','ОСН','ЕСХН','ПСН','АУСН'] %}
+                        <option value="{{ s }}">{{ s }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Бухгалтер</label>
+                    <select name="accountant_id" class="form-select">
+                        <option value="">— не назначен —</option>
+                        {% for a in accountants %}
+                        <option value="{{ a.id }}">{{ a.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="has_employees" value="1" id="newEmp">
+                        <label class="form-check-label" for="newEmp">Есть сотрудники</label>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="has_military" value="1" id="newMil">
+                        <label class="form-check-label" for="newMil">Воинский учёт</label>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="submit" class="btn btn-primary" style="background:var(--brand);border-color:var(--brand)">
+                    <i class="bi bi-plus-lg me-1"></i>Добавить
+                </button>
+            </div>
+        </div>
+        </form>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+(function(){
+    const table   = document.getElementById('coTable');
+    if (!table) return;
+    const rows    = Array.from(table.querySelectorAll('tbody tr'));
+    const noRes   = document.getElementById('noResults');
+    const counter = document.getElementById('co-count');
+    let activeTab = 'all';
+
+    function applyFilters(){
+        const name = document.getElementById('filterName').value.trim().toUpperCase();
+        const acc  = document.getElementById('filterAcc').value.trim();
+        let visible = 0;
+        rows.forEach(r => {
+            const rName = r.dataset.name || '';
+            const rAcc  = r.dataset.acc  || '';
+            const rType = r.dataset.type || '';
+            const rEmp  = r.dataset.emp  || '0';
+            let show = true;
+            if (name && !rName.includes(name)) show = false;
+            if (acc  && rAcc !== acc)           show = false;
+            if (activeTab === 'ooo'   && rType !== 'ООО') show = false;
+            if (activeTab === 'ip'    && rType !== 'ИП')  show = false;
+            if (activeTab === 'emp'   && rEmp  === '0')   show = false;
+            if (activeTab === 'noemp' && rEmp  !== '0')   show = false;
+            r.style.display = show ? '' : 'none';
+            if (show) visible++;
+        });
+        counter.textContent = visible;
+        noRes.classList.toggle('d-none', visible > 0);
+    }
+
+    document.getElementById('filterName').addEventListener('input', applyFilters);
+    document.getElementById('filterAcc').addEventListener('change', applyFilters);
+    document.getElementById('tabGroup').addEventListener('click', function(e){
+        const btn = e.target.closest('[data-tab]');
+        if (!btn) return;
+        this.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeTab = btn.dataset.tab;
+        applyFilters();
+    });
+})();
+</script>
 </body>
 </html>

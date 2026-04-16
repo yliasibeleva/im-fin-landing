@@ -107,6 +107,14 @@ def _migrate(conn) -> None:
     migrations = [
         "ALTER TABLE companies ADD COLUMN work_standard TEXT",
         "ALTER TABLE companies ADD COLUMN org_type TEXT DEFAULT 'ООО'",
+        "ALTER TABLE companies ADD COLUMN payroll_accountant_id INTEGER REFERENCES accountants(id)",
+        "ALTER TABLE companies ADD COLUMN operator_id INTEGER REFERENCES accountants(id)",
+        "ALTER TABLE accountants ADD COLUMN phone TEXT",
+        "ALTER TABLE accountants ADD COLUMN email TEXT",
+        "ALTER TABLE accountants ADD COLUMN position TEXT",
+        "ALTER TABLE accountants ADD COLUMN is_remote INTEGER DEFAULT 0",
+        "ALTER TABLE accountants ADD COLUMN tg TEXT",
+        "ALTER TABLE companies ADD COLUMN description TEXT",
     ]
     for sql in migrations:
         try:
@@ -189,7 +197,14 @@ def add_company(
 
 def get_all_companies(active_only: bool = True) -> list:
     with get_db() as conn:
-        q = "SELECT c.*, a.name as accountant_name FROM companies c LEFT JOIN accountants a ON c.accountant_id = a.id"
+        q = """SELECT c.*,
+                      a1.name as accountant_name,
+                      a2.name as payroll_accountant_name,
+                      a3.name as operator_name
+               FROM companies c
+               LEFT JOIN accountants a1 ON c.accountant_id = a1.id
+               LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
+               LEFT JOIN accountants a3 ON c.operator_id = a3.id"""
         if active_only:
             q += " WHERE c.is_active = 1"
         q += " ORDER BY c.name"
@@ -199,8 +214,14 @@ def get_all_companies(active_only: bool = True) -> list:
 def get_company(company_id: int):
     with get_db() as conn:
         return conn.execute(
-            """SELECT c.*, a.name as accountant_name
-               FROM companies c LEFT JOIN accountants a ON c.accountant_id = a.id
+            """SELECT c.*,
+                      a1.name as accountant_name,
+                      a2.name as payroll_accountant_name,
+                      a3.name as operator_name
+               FROM companies c
+               LEFT JOIN accountants a1 ON c.accountant_id = a1.id
+               LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
+               LEFT JOIN accountants a3 ON c.operator_id = a3.id
                WHERE c.id = ?""",
             (company_id,)
         ).fetchone()
@@ -471,7 +492,7 @@ def update_company(company_id: int, **fields) -> None:
     allowed = {
         'name', 'inn', 'tax_system', 'org_type', 'has_employees',
         'has_military', 'max_group_id', 'accountant_id', 'work_standard',
-        'notes', 'is_active'
+        'notes', 'is_active', 'payroll_accountant_id', 'operator_id'
     }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:

@@ -1,0 +1,20 @@
+[
+  {"name": "Аверичева Марина",          "position": "Бухгалтер",                        "phone": "89103019040", "email": null, "tg": null,              "is_remote": 1},
+  {"name": "Андрианова Елена",          "position": "Бухгалтер",                        "phone": "89057642797", "email": null, "tg": "@alenalucky82",    "is_remote": 1},
+  {"name": "Багрянцева Елизавета",      "position": "Бухгалтер (операционный)",         "phone": "89202843317", "email": null, "tg": "@li2aveta",         "is_remote": 0},
+  {"name": "Байкова Татьяна",           "position": "Бухгалтер",                        "phone": "89880842424", "email": null, "tg": "@tatyana_buh_01",   "is_remote": 1},
+  {"name": "Барышева Яна",              "position": "Бухгалтер",                        "phone": "89803626857", "email": null, "tg": null,                "is_remote": 0},
+  {"name": "Михеева Маргарита",         "position": "Бухгалтер по зарплате",            "phone": "89155048051", "email": null, "tg": null,                "is_remote": 1},
+  {"name": "Мозолева Анжелика",         "position": "Бухгалтер (операционный)",         "phone": "89155162966", "email": null, "tg": "@an_mozoleva",      "is_remote": 0},
+  {"name": "Пантелеева Ольга",          "position": "Бухгалтер",                        "phone": "89192171888", "email": null, "tg": "@olgas021c",         "is_remote": 1},
+  {"name": "Сибилев Денис Олегович",    "position": "Директор по развитию",             "phone": null,          "email": null, "tg": null,                "is_remote": 0},
+  {"name": "Сибилева Юлия Николаевна",  "position": "Генеральный директор",             "phone": null,          "email": null, "tg": null,                "is_remote": 0},
+  {"name": "Сопова Юлия",               "position": "Специалист по кадрам",             "phone": "89307772707", "email": null, "tg": "@jusopova",          "is_remote": 0},
+  {"name": "Стаханова Юлия",            "position": "Бухгалтер",                        "phone": "89091181713", "email": null, "tg": null,                "is_remote": 1},
+  {"name": "Строкачева Ольга",          "position": "Бухгалтер по зарплате",            "phone": "89188668848", "email": null, "tg": "@Olly_str",          "is_remote": 1},
+  {"name": "Харзеева Светлана",         "position": "Бухгалтер",                        "phone": "89536133755", "email": null, "tg": null,                "is_remote": 0},
+  {"name": "Штырева Анна",              "position": "Бухгалтер",                        "phone": "89534145858", "email": null, "tg": null,                "is_remote": 1},
+  {"name": "Щёголева Екатерина",        "position": "Бухгалтер по зарплате",            "phone": "89102644373", "email": null, "tg": null,                "is_remote": 0},
+  {"name": "Манько Евгения",            "position": "Специалист по системам (ФГИС)",    "phone": "89180529821", "email": null, "tg": null,                "is_remote": 1},
+  {"name": "Юношкина Анастасия",        "position": "Бухгалтер (операционный)",         "phone": "89202869465", "email": null, "tg": null,                "is_remote": 0}
+]

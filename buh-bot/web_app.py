@@ -74,6 +74,7 @@ async def dashboard(request: Request, _=Depends(require_auth)):
     upcoming_raw   = await asyncio.to_thread(db.get_upcoming_deadlines, 7)
     overdue_raw    = await asyncio.to_thread(db.get_overdue_deadlines)
     kpi_raw        = await asyncio.to_thread(db.get_accountant_stats_full, today.year, today.month)
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
 
     companies = [dict(c) for c in companies_raw]
 
@@ -107,6 +108,7 @@ async def dashboard(request: Request, _=Depends(require_auth)):
             'upcoming':    upcoming,
             'overdue':     overdue,
             'kpi':         kpi,
+            'accountants': [dict(a) for a in accountants_raw],
             'today':       today.strftime('%d.%m.%Y'),
             'month_label': f"{MONTHS_RU[today.month]} {today.year}",
             'stats': {
@@ -176,6 +178,42 @@ async def company_page(company_id: int, request: Request, _=Depends(require_auth
 
 # ─── Редактирование компании ──────────────────────────────────────────────────
 
+@app.post('/companies/add')
+async def company_add(
+    _=Depends(require_auth),
+    name: str = Form(...),
+    org_type: str = Form('ООО'),
+    tax_system: str = Form('УСН'),
+    has_employees: str = Form('0'),
+    has_military: str = Form('0'),
+    accountant_id: Optional[str] = Form(None),
+):
+    await asyncio.to_thread(
+        db.add_company,
+        name=name, inn=None, tax_system=tax_system, org_type=org_type,
+        has_employees=int(has_employees == '1'),
+        has_military=int(has_military == '1'),
+        accountant_id=int(accountant_id) if accountant_id else None,
+    )
+    return RedirectResponse('/', status_code=303)
+
+
+@app.post('/company/{company_id}/description')
+async def company_description(
+    company_id: int,
+    _=Depends(require_auth),
+    description: str = Form(''),
+):
+    await asyncio.to_thread(db.update_company, company_id, description=description or None)
+    return RedirectResponse(f'/company/{company_id}', status_code=303)
+
+
+@app.post('/company/{company_id}/delete')
+async def company_delete(company_id: int, _=Depends(require_auth)):
+    await asyncio.to_thread(db.deactivate_company, company_id)
+    return RedirectResponse('/', status_code=303)
+
+
 @app.post('/company/{company_id}/edit')
 async def company_edit(
     company_id: int,
@@ -186,6 +224,8 @@ async def company_edit(
     has_employees: str = Form('0'),
     has_military: str = Form('0'),
     accountant_id: Optional[str] = Form(None),
+    payroll_accountant_id: Optional[str] = Form(None),
+    operator_id: Optional[str] = Form(None),
 ):
     await asyncio.to_thread(
         db.update_company, company_id,
@@ -194,6 +234,8 @@ async def company_edit(
         has_employees=int(has_employees == '1'),
         has_military=int(has_military == '1'),
         accountant_id=int(accountant_id) if accountant_id else None,
+        payroll_accountant_id=int(payroll_accountant_id) if payroll_accountant_id else None,
+        operator_id=int(operator_id) if operator_id else None,
     )
     return RedirectResponse(f'/company/{company_id}', status_code=303)
 
@@ -254,8 +296,42 @@ async def accountants_page(request: Request, _=Depends(require_auth)):
 
 
 @app.post('/accountants/add')
-async def accountant_add(_=Depends(require_auth), name: str = Form(...)):
-    await asyncio.to_thread(db.add_accountant, name)
+async def accountant_add(
+    _=Depends(require_auth),
+    name: str = Form(...),
+    position: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    tg: Optional[str] = Form(None),
+    is_remote: str = Form('0'),
+):
+    def _add():
+        with db.get_db() as conn:
+            conn.execute(
+                'INSERT INTO accountants (name, position, phone, tg, is_remote) VALUES (?,?,?,?,?)',
+                (name, position or None, phone or None, tg or None, int(is_remote))
+            )
+    await asyncio.to_thread(_add)
+    return RedirectResponse('/accountants', status_code=303)
+
+
+@app.post('/accountants/{accountant_id}/edit')
+async def accountant_edit(
+    accountant_id: int,
+    _=Depends(require_auth),
+    name: str = Form(...),
+    position: Optional[str] = Form(None),
+    phone: Optional[str] = Form(None),
+    email: Optional[str] = Form(None),
+    tg: Optional[str] = Form(None),
+    is_remote: str = Form('0'),
+):
+    def _update():
+        with db.get_db() as conn:
+            conn.execute(
+                'UPDATE accountants SET name=?, position=?, phone=?, email=?, tg=?, is_remote=? WHERE id=?',
+                (name, position or None, phone or None, email or None, tg or None, int(is_remote), accountant_id)
+            )
+    await asyncio.to_thread(_update)
     return RedirectResponse('/accountants', status_code=303)
 
 
