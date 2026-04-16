@@ -263,7 +263,7 @@
                     <tbody>
                     {% for c in companies %}
                         <tr>
-                            <td><strong>{{ c.name }}</strong></td>
+                            <td><a href="/company/{{ c.id }}" class="fw-bold text-decoration-none" style="color:var(--brand)">{{ c.name }}</a></td>
                             <td class="text-muted">{{ c.inn or '—' }}</td>
                             <td>
                                 {% if c.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>

@@ -108,16 +108,65 @@ async def dashboard(request: Request, _=Depends(require_auth)):
             'overdue':     overdue,
             'kpi':         kpi,
             'today':       today.strftime('%d.%m.%Y'),
-            'month_label': today.strftime('%Y') + ' ' + [
-            '', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-            'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь'
-        ][today.month],
+            'month_label': f"{MONTHS_RU[today.month]} {today.year}",
             'stats': {
                 'companies':  len(companies),
                 'upcoming':   len(upcoming),
                 'overdue':    len(overdue),
                 'accountants': len(kpi),
             },
+        }
+    )
+
+
+MONTHS_RU = ['', 'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
+             'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
+
+
+@app.get('/company/{company_id}', response_class=HTMLResponse)
+async def company_page(company_id: int, request: Request, _=Depends(require_auth)):
+    company_raw = await asyncio.to_thread(db.get_company, company_id)
+    if not company_raw:
+        raise HTTPException(status_code=404, detail='Компания не найдена')
+
+    company = dict(company_raw)
+    today = date.today()
+
+    deadlines_raw = await asyncio.to_thread(db.get_deadlines_for_company, company_id)
+    works_raw     = await asyncio.to_thread(db.get_additional_works_for_company_month,
+                                            company_id, today.year, today.month)
+
+    deadlines = []
+    for dl in deadlines_raw:
+        d = dict(dl)
+        d['due_fmt']   = fmt_date(d['due_date'])
+        d['days_left'] = days_left(d['due_date'])
+        deadlines.append(d)
+
+    works = [dict(w) for w in works_raw]
+    for w in works:
+        w['work_date_fmt'] = fmt_date(w.get('work_date', ''))
+
+    total_hours  = sum(w.get('hours', 0) or 0 for w in works)
+    total_amount = sum(w.get('amount', 0) or 0 for w in works)
+
+    pending  = [d for d in deadlines if d['status'] == 'pending']
+    done     = [d for d in deadlines if d['status'] == 'done']
+    overdue  = [d for d in deadlines if d['status'] == 'overdue']
+
+    return templates.TemplateResponse(
+        request=request,
+        name='company.html',
+        context={
+            'company':      company,
+            'pending':      pending,
+            'done':         done,
+            'overdue':      overdue,
+            'works':        works,
+            'total_hours':  total_hours,
+            'total_amount': total_amount,
+            'today':        today.strftime('%d.%m.%Y'),
+            'month_label':  f"{MONTHS_RU[today.month]} {today.year}",
         }
     )
 

@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ company.name }} — Империя Финанс</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root { --brand: #7b1c2e; --brand2: #1a5c3a; }
+        body { background: #f4f6f8; font-size: 0.88rem; }
+        .top-nav { background: var(--brand) !important; }
+        .top-nav .navbar-brand { color: #fff; font-weight: 700; font-size: 1.1rem; }
+        .top-nav a { color: rgba(255,255,255,.7); text-decoration: none; }
+        .top-nav a:hover { color: #fff; }
+        .ch-primary   { background: var(--brand);  color: #fff; }
+        .ch-secondary { background: var(--brand2); color: #fff; }
+        .ch-danger    { background: #dc3545;        color: #fff; }
+        .ch-success   { background: #198754;        color: #fff; }
+        .table-sm td, .table-sm th { padding: .35rem .6rem; vertical-align: middle; }
+        .row-overdue { background-color: #fff0f0 !important; }
+        .row-warn    { background-color: #fffbef !important; }
+        .b-osn  { background: #6f42c1; }
+        .b-usn  { background: #0d6efd; }
+        .b-eshn { background: #198754; }
+        .b-psn  { background: #fd7e14; }
+        section { scroll-margin-top: 68px; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar top-nav sticky-top py-2 shadow-sm">
+    <div class="container-fluid px-4">
+        <span class="navbar-brand">
+            <a href="/" class="me-2"><i class="bi bi-arrow-left"></i></a>
+            {{ company.name }}
+        </span>
+        <span class="text-white-50 small">{{ today }}</span>
+    </div>
+</nav>
+
+<div class="container-fluid py-3 px-4">
+
+    <!-- Карточка компании -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header ch-primary py-2">
+            <i class="bi bi-building me-2"></i>Информация о компании
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">ИНН</div>
+                    <div class="fw-bold">{{ company.inn or '—' }}</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">СНО</div>
+                    <div>
+                        {% if company.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>
+                        {% elif company.tax_system == 'УСН' %}<span class="badge b-usn">УСН</span>
+                        {% elif company.tax_system == 'ЕСХН' %}<span class="badge b-eshn">ЕСХН</span>
+                        {% elif company.tax_system == 'ПСН' %}<span class="badge b-psn">ПСН</span>
+                        {% else %}<span class="badge bg-secondary">{{ company.tax_system }}</span>{% endif %}
+                    </div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">Тип</div>
+                    <div class="fw-bold">{{ company.org_type or '—' }}</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">Бухгалтер</div>
+                    <div class="fw-bold">{{ company.accountant_name or '—' }}</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">Сотрудники</div>
+                    <div>{% if company.has_employees %}<i class="bi bi-check-circle-fill text-success"></i> Есть
+                    {% else %}<i class="bi bi-dash text-muted"></i> Нет{% endif %}</div>
+                </div>
+                <div class="col-6 col-md-3">
+                    <div class="text-muted small">Воинский учёт</div>
+                    <div>{% if company.has_military %}<i class="bi bi-check-circle-fill text-success"></i> Есть
+                    {% else %}<i class="bi bi-dash text-muted"></i> Нет{% endif %}</div>
+                </div>
+                {% if company.standard %}
+                <div class="col-12">
+                    <div class="text-muted small">Стандарт работы</div>
+                    <div>{{ company.standard }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Просроченные -->
+    {% if overdue %}
+    <section class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-danger d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-exclamation-triangle-fill me-2"></i>Просроченные</span>
+                <span class="badge bg-white text-danger fw-bold">{{ overdue|length }}</span>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Отчёт</th><th>Срок</th><th>Просрочено</th><th>Период</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for dl in overdue %}
+                        <tr class="row-overdue">
+                            <td><strong>{{ dl.report_name }}</strong></td>
+                            <td class="text-danger fw-bold">{{ dl.due_fmt }}</td>
+                            <td><span class="badge bg-danger">{{ dl.days_left|abs }} дн.</span></td>
+                            <td class="text-muted">{{ dl.period or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Предстоящие -->
+    <section class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-calendar-week me-2"></i>Предстоящие дедлайны</span>
+                <span class="badge bg-white text-dark fw-bold">{{ pending|length }}</span>
+            </div>
+            <div class="card-body p-0">
+            {% if pending %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Срок</th><th>Осталось</th><th>Отчёт</th><th>Период</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for dl in pending %}
+                        <tr {% if dl.days_left <= 1 %}class="row-overdue"{% elif dl.days_left <= 3 %}class="row-warn"{% endif %}>
+                            <td><strong>{{ dl.due_fmt }}</strong></td>
+                            <td>
+                                {% if dl.days_left <= 0 %}<span class="badge bg-danger">Сегодня!</span>
+                                {% elif dl.days_left == 1 %}<span class="badge bg-danger">Завтра</span>
+                                {% elif dl.days_left <= 3 %}<span class="badge bg-warning text-dark">{{ dl.days_left }} дн.</span>
+                                {% else %}<span class="badge bg-info text-dark">{{ dl.days_left }} дн.</span>{% endif %}
+                            </td>
+                            <td>{{ dl.report_name }}</td>
+                            <td class="text-muted">{{ dl.period or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted"><i class="bi bi-check-circle-fill text-success me-2"></i>Нет предстоящих дедлайнов</div>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Выполненные -->
+    <section class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-success d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-check-circle-fill me-2"></i>Выполненные</span>
+                <span class="badge bg-white text-dark fw-bold">{{ done|length }}</span>
+            </div>
+            <div class="card-body p-0">
+            {% if done %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Отчёт</th><th>Срок</th><th>Период</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for dl in done %}
+                        <tr>
+                            <td>{{ dl.report_name }}</td>
+                            <td class="text-muted">{{ dl.due_fmt }}</td>
+                            <td class="text-muted">{{ dl.period or '—' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">Нет выполненных дедлайнов</div>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+
+    <!-- Доп. работы -->
+    <section class="mb-4">
+        <div class="card shadow-sm">
+            <div class="card-header ch-secondary d-flex justify-content-between align-items-center py-2">
+                <span><i class="bi bi-briefcase-fill me-2"></i>Доп. работы — {{ month_label }}</span>
+                {% if total_amount %}
+                <span class="badge bg-white text-dark fw-bold">{{ total_amount|rub }} ₽ / {{ total_hours }} ч</span>
+                {% endif %}
+            </div>
+            <div class="card-body p-0">
+            {% if works %}
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr><th>Дата</th><th>Тип</th><th>Описание</th><th class="text-center">Часы</th><th class="text-center">Сумма</th></tr>
+                    </thead>
+                    <tbody>
+                    {% for w in works %}
+                        <tr>
+                            <td class="text-muted">{{ w.work_date_fmt }}</td>
+                            <td>{{ w.work_type or '—' }}</td>
+                            <td>{{ w.description or '—' }}</td>
+                            <td class="text-center">{{ w.hours or 0 }} ч</td>
+                            <td class="text-center">{{ (w.amount or 0)|rub }} ₽</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <div class="p-4 text-center text-muted">Доп. работ за {{ month_label }} нет</div>
+            {% endif %}
+            </div>
+        </div>
+    </section>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
