@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Бухгалтеры — Империя Финанс</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        :root { --brand: #7b1c2e; --brand2: #1a5c3a; }
+        body { background: #f4f6f8; font-size: 0.88rem; }
+        .top-nav { background: var(--brand) !important; }
+        .top-nav .navbar-brand { color: #fff; font-weight: 700; font-size: 1.1rem; }
+        .top-nav a { color: rgba(255,255,255,.7); text-decoration: none; }
+        .top-nav a:hover { color: #fff; }
+        .ch-primary { background: var(--brand); color: #fff; }
+        .table-sm td, .table-sm th { padding: .35rem .6rem; vertical-align: middle; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar top-nav sticky-top py-2 shadow-sm">
+    <div class="container-fluid px-4">
+        <span class="navbar-brand">
+            <a href="/" class="me-2"><i class="bi bi-arrow-left"></i></a>
+            Бухгалтеры
+        </span>
+        <span class="text-white-50 small">{{ today }}</span>
+    </div>
+</nav>
+
+<div class="container-fluid py-3 px-4" style="max-width:700px">
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
+            <span><i class="bi bi-people-fill me-2"></i>Список бухгалтеров</span>
+            <span class="badge bg-white text-dark fw-bold">{{ accountants|length }}</span>
+        </div>
+        <div class="card-body p-0">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr><th>#</th><th>Имя</th><th>Max ID</th><th></th></tr>
+                </thead>
+                <tbody>
+                {% for a in accountants %}
+                <tr>
+                    <td class="text-muted">{{ a.id }}</td>
+                    <td><strong>{{ a.name }}</strong></td>
+                    <td class="text-muted">{{ a.max_user_id or '—' }}</td>
+                    <td>
+                        <form method="post" action="/accountants/{{ a.id }}/delete"
+                              onsubmit="return confirm('Удалить {{ a.name }}?')">
+                            <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-2">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Форма добавления -->
+    <div class="card shadow-sm">
+        <div class="card-header ch-primary py-2">
+            <i class="bi bi-person-plus-fill me-2"></i>Добавить бухгалтера
+        </div>
+        <div class="card-body">
+            <form method="post" action="/accountants/add" class="d-flex gap-2">
+                <input type="text" name="name" class="form-control" placeholder="Фамилия И.О." required>
+                <button type="submit" class="btn btn-primary flex-shrink-0"
+                        style="background:var(--brand);border-color:var(--brand)">
+                    <i class="bi bi-plus-lg me-1"></i>Добавить
+                </button>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

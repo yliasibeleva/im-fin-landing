@@ -11,11 +11,11 @@ from datetime import date
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, HTTPException, Request, status
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
-from typing import Annotated
+from typing import Annotated, Optional
 
 import database as db
 
@@ -131,6 +131,7 @@ async def company_page(company_id: int, request: Request, _=Depends(require_auth
 
     company = dict(company_raw)
     today = date.today()
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
 
     deadlines_raw = await asyncio.to_thread(db.get_deadlines_for_company, company_id)
     works_raw     = await asyncio.to_thread(db.get_additional_works_for_company_month,
@@ -165,10 +166,106 @@ async def company_page(company_id: int, request: Request, _=Depends(require_auth
             'works':        works,
             'total_hours':  total_hours,
             'total_amount': total_amount,
+            'accountants':  [dict(a) for a in accountants_raw],
             'today':        today.strftime('%d.%m.%Y'),
+            'today_iso':    today.isoformat(),
             'month_label':  f"{MONTHS_RU[today.month]} {today.year}",
         }
     )
+
+
+# ─── Редактирование компании ──────────────────────────────────────────────────
+
+@app.post('/company/{company_id}/edit')
+async def company_edit(
+    company_id: int,
+    request: Request,
+    _=Depends(require_auth),
+    tax_system: str = Form(...),
+    org_type: str = Form(...),
+    has_employees: str = Form('0'),
+    has_military: str = Form('0'),
+    accountant_id: Optional[str] = Form(None),
+):
+    await asyncio.to_thread(
+        db.update_company, company_id,
+        tax_system=tax_system,
+        org_type=org_type,
+        has_employees=int(has_employees == '1'),
+        has_military=int(has_military == '1'),
+        accountant_id=int(accountant_id) if accountant_id else None,
+    )
+    return RedirectResponse(f'/company/{company_id}', status_code=303)
+
+
+# ─── Дедлайны ─────────────────────────────────────────────────────────────────
+
+@app.post('/company/{company_id}/deadline/{deadline_id}/done')
+async def deadline_done(company_id: int, deadline_id: int, _=Depends(require_auth)):
+    await asyncio.to_thread(db.mark_deadline_done, deadline_id)
+    return RedirectResponse(f'/company/{company_id}', status_code=303)
+
+
+@app.post('/company/{company_id}/deadline/add')
+async def deadline_add(
+    company_id: int,
+    _=Depends(require_auth),
+    report_name: str = Form(...),
+    due_date: str = Form(...),
+    period: Optional[str] = Form(None),
+):
+    await asyncio.to_thread(
+        db.add_deadline, company_id, report_name, 'custom', due_date, period or None
+    )
+    return RedirectResponse(f'/company/{company_id}', status_code=303)
+
+
+# ─── Доп. работы ──────────────────────────────────────────────────────────────
+
+@app.post('/company/{company_id}/work/add')
+async def work_add(
+    company_id: int,
+    _=Depends(require_auth),
+    description: str = Form(...),
+    work_type: str = Form('Прочее'),
+    work_date: str = Form(...),
+    hours: float = Form(0),
+    amount: float = Form(0),
+    accountant_id: Optional[str] = Form(None),
+):
+    await asyncio.to_thread(
+        db.add_additional_work,
+        company_id, description, work_type, work_date,
+        int(accountant_id) if accountant_id else None,
+        hours, amount,
+    )
+    return RedirectResponse(f'/company/{company_id}', status_code=303)
+
+
+# ─── Бухгалтеры ───────────────────────────────────────────────────────────────
+
+@app.get('/accountants', response_class=HTMLResponse)
+async def accountants_page(request: Request, _=Depends(require_auth)):
+    accs = await asyncio.to_thread(db.get_all_accountants)
+    return templates.TemplateResponse(
+        request=request, name='accountants.html',
+        context={'accountants': [dict(a) for a in accs], 'today': date.today().strftime('%d.%m.%Y')}
+    )
+
+
+@app.post('/accountants/add')
+async def accountant_add(_=Depends(require_auth), name: str = Form(...)):
+    await asyncio.to_thread(db.add_accountant, name)
+    return RedirectResponse('/accountants', status_code=303)
+
+
+@app.post('/accountants/{accountant_id}/delete')
+async def accountant_delete(accountant_id: int, _=Depends(require_auth)):
+    def _delete():
+        with db.get_db() as conn:
+            conn.execute('DELETE FROM accountants WHERE id = ?', (accountant_id,))
+    await asyncio.to_thread(_delete)
+    return RedirectResponse('/accountants', status_code=303)
 
 
 if __name__ == '__main__':
