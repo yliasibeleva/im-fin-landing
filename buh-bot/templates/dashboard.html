@@ -305,10 +305,11 @@
                     {% for c in companies %}
                         <tr data-type="{{ c.org_type }}" data-emp="{{ c.has_employees }}"
                             data-acc="{{ c.accountant_name or '' }}"
-                            data-name="{{ c.name | upper }}">
+                            data-name="{{ c.name | upper }}"
+                            onclick="location.href='/company/{{ c.id }}'"
+                            style="cursor:pointer">
                             <td>
-                                <a href="/company/{{ c.id }}" class="fw-bold text-decoration-none"
-                                   style="color:var(--brand);text-transform:uppercase">{% if c.org_type %}{{ c.org_type }} {% endif %}{{ c.name }}</a>
+                                <span class="fw-bold" style="color:var(--brand);text-transform:uppercase">{% if c.org_type %}{{ c.org_type }} {% endif %}{{ c.name }}</span>
                             </td>
                             <td>
                                 {% if c.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>

@@ -21,6 +21,8 @@ import database as db
 
 load_dotenv()
 
+db.init_db()  # применяем миграции при старте
+
 WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'admin')
 WEB_PORT = int(os.getenv('WEB_PORT', '8000'))
 
