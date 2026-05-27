@@ -1,454 +1,179 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% if company.org_type %}{{ company.org_type }} {% endif %}{{ company.name }} — Империя Финанс</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
-    <style>
-        :root { --brand: #7b1c2e; --brand2: #1a5c3a; }
-        body { background: #f4f6f8; font-size: 0.88rem; }
-        .top-nav { background: var(--brand) !important; }
-        .top-nav .navbar-brand { color: #fff; font-weight: 700; font-size: 1.1rem; }
-        .top-nav a { color: rgba(255,255,255,.7); text-decoration: none; }
-        .top-nav a:hover { color: #fff; }
-        .ch-primary   { background: var(--brand);  color: #fff; }
-        .ch-secondary { background: var(--brand2); color: #fff; }
-        .ch-danger    { background: #dc3545;        color: #fff; }
-        .ch-success   { background: #198754;        color: #fff; }
-        .table-sm td, .table-sm th { padding: .35rem .6rem; vertical-align: middle; }
-        .row-overdue { background-color: #fff0f0 !important; }
-        .row-warn    { background-color: #fffbef !important; }
-        .b-osn  { background: #6f42c1; }
-        .b-usn  { background: #0d6efd; }
-        .b-eshn { background: #198754; }
-        .b-psn  { background: #fd7e14; }
-        section { scroll-margin-top: 68px; }
-    </style>
-</head>
-<body>
-
-<nav class="navbar top-nav sticky-top py-2 shadow-sm">
-    <div class="container-fluid px-4">
-        <span class="navbar-brand">
-            <a href="/" class="me-2"><i class="bi bi-arrow-left"></i></a>
-            {% if company.org_type %}{{ company.org_type }} {% endif %}{{ company.name }}
-        </span>
-        <span class="text-white-50 small">{{ today }}</span>
+﻿{% extends "base.html" %}
+{% block title %}{{ company.name }} — Империя Финанс{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center mb-3 gap-2">
+  <a href="/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left"></i></a>
+  <h4 class="mb-0 fw-bold">{{ company.name }}</h4>
+  <span class="badge {% if 'ОСН' == company.tax_system %}badge-osn{% elif 'УСН' in company.tax_system %}badge-usn{% elif 'ЕСХН' == company.tax_system %}badge-esxn{% else %}badge-psn{% endif %} fs-6">{{ company.tax_system }}</span>
+  <span class="badge {% if company.org_type == 'ООО' %}badge-ooo{% else %}badge-ip{% endif %} fs-6">{{ company.org_type or '—' }}</span>
+  {% if company.has_employees %}<span class="badge bg-info text-dark">Сотрудники</span>{% endif %}
+  {% if company.has_military %}<span class="badge bg-secondary">Воинский учёт</span>{% endif %}
+</div>
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header bg-light"><i class="bi bi-person-badge me-2"></i>Основная информация</div>
+      <div class="card-body">
+        <div class="mb-1 text-muted section-title">Бухгалтер</div>
+        <div class="fw-semibold mb-3">{{ company.accountant_name or '— не назначен —' }}</div>
+        <div class="mb-1 text-muted section-title">ИНН</div>
+        <div class="mb-3">{{ company.inn or '—' }}</div>
+        <div class="mb-1 text-muted section-title">Max группа</div>
+        <div class="mb-3">{{ company.max_group_id or '— не привязана —' }}</div>
+        <div class="mb-1 text-muted section-title">Статотчётность</div>
+        <div>{% if company.has_stats_reporting %}<span class="badge bg-success">Да</span>{% else %}<span class="badge bg-secondary">Нет</span>{% endif %}</div>
+      </div>
     </div>
-</nav>
-
-<div class="container-fluid py-3 px-4">
-
-    <!-- Карточка компании -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header ch-primary py-2 d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-building me-2"></i>Информация о компании</span>
-            <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#editCompanyModal">
-                    <i class="bi bi-pencil me-1"></i>Редактировать
-                </button>
-                <form method="post" action="/company/{{ company.id }}/delete"
-                      onsubmit="return confirm('Удалить компанию {{ company.name }}?')">
-                    <button type="submit" class="btn btn-sm btn-outline-danger btn-light">
-                        <i class="bi bi-trash me-1"></i>Удалить
-                    </button>
-                </form>
-            </div>
+    <div class="card mb-3">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-card-text me-2"></i>Описание бизнеса</span>
+        <button class="btn btn-xs btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#editDesc"><i class="bi bi-pencil"></i></button>
+      </div>
+      <div class="card-body">
+        {% if company.description %}
+        <div class="text-secondary mb-2">{{ company.description }}</div>
+        {% else %}
+        <div class="text-muted fst-italic mb-2">Не заполнено</div>
+        {% endif %}
+        <div class="collapse" id="editDesc">
+          <form method="post" action="/company/{{ company.id }}/description" class="mt-2">
+            <textarea name="description" class="form-control mb-2" rows="3" placeholder="Вид деятельности, специфика...">{{ company.description or '' }}</textarea>
+            <button type="submit" class="btn btn-sm btn-primary w-100">Сохранить описание</button>
+          </form>
         </div>
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header bg-light"><i class="bi bi-clipboard-check me-2"></i>Стандарт обслуживания</div>
+      <div class="card-body">
+        {% if company.work_standard %}
+        <pre class="mb-0" style="white-space:pre-wrap;font-size:.85rem">{{ company.work_standard }}</pre>
+        {% else %}
+        <span class="text-muted fst-italic">Не заполнен</span>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-pencil-square me-2"></i>Редактировать</span>
+        <button class="btn btn-xs btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#editCo"><i class="bi bi-chevron-down"></i></button>
+      </div>
+      <div class="collapse" id="editCo">
         <div class="card-body">
-            <div class="row g-3">
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">ИНН</div>
-                    <div class="fw-bold">{{ company.inn or '—' }}</div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">СНО</div>
-                    <div>
-                        {% if company.tax_system == 'ОСН' %}<span class="badge b-osn">ОСН</span>
-                        {% elif company.tax_system == 'УСН' %}<span class="badge b-usn">УСН</span>
-                        {% elif company.tax_system == 'ЕСХН' %}<span class="badge b-eshn">ЕСХН</span>
-                        {% elif company.tax_system == 'ПСН' %}<span class="badge b-psn">ПСН</span>
-                        {% else %}<span class="badge bg-secondary">{{ company.tax_system }}</span>{% endif %}
-                    </div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">Тип</div>
-                    <div class="fw-bold">{{ company.org_type or '—' }}</div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">Главный бухгалтер</div>
-                    <div class="fw-bold">{{ company.accountant_name or '—' }}</div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">Бухгалтер по з/п</div>
-                    <div class="fw-bold">{{ company.payroll_accountant_name or '—' }}</div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">Операционист</div>
-                    <div class="fw-bold">{{ company.operator_name or '—' }}</div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">Сотрудники</div>
-                    <div>{% if company.has_employees %}<i class="bi bi-check-circle-fill text-success"></i> Есть
-                    {% else %}<i class="bi bi-dash text-muted"></i> Нет{% endif %}</div>
-                </div>
-                <div class="col-6 col-md-3">
-                    <div class="text-muted small">Воинский учёт</div>
-                    <div>{% if company.has_military %}<i class="bi bi-check-circle-fill text-success"></i> Есть
-                    {% else %}<i class="bi bi-dash text-muted"></i> Нет{% endif %}</div>
-                </div>
-                {% if company.work_standard %}
-                <div class="col-12">
-                    <div class="text-muted small">Стандарт работы</div>
-                    <div>{{ company.work_standard }}</div>
-                </div>
-                {% endif %}
+          <form method="post" action="/company/{{ company.id }}/edit">
+            <div class="mb-2"><label class="form-label">СНО</label><select name="tax_system" class="form-select form-select-sm"><option {% if company.tax_system=='УСН 6%' %}selected{% endif %}>УСН 6%</option><option {% if company.tax_system=='УСН 15%' %}selected{% endif %}>УСН 15%</option><option {% if company.tax_system=='ОСН' %}selected{% endif %}>ОСН</option><option {% if company.tax_system=='ЕСХН' %}selected{% endif %}>ЕСХН</option><option {% if company.tax_system=='ПСН' %}selected{% endif %}>ПСН</option></select></div>
+            <div class="mb-2"><label class="form-label">Тип</label><select name="org_type" class="form-select form-select-sm"><option {% if company.org_type=='ООО' %}selected{% endif %}>ООО</option><option {% if company.org_type=='ИП' %}selected{% endif %}>ИП</option><option {% if company.org_type=='АО' %}selected{% endif %}>АО</option><option {% if company.org_type=='НКО' %}selected{% endif %}>НКО</option></select></div>
+            <div class="mb-2"><label class="form-label">Бухгалтер</label><select name="accountant_id" class="form-select form-select-sm"><option value="">— нет —</option>{% for a in accountants %}<option value="{{ a.id }}" {% if company.accountant_id==a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+            <div class="row g-2 mb-3">
+              <div class="col-6"><label class="form-label">Сотрудники</label><select name="has_employees" class="form-select form-select-sm"><option value="0" {% if not company.has_employees %}selected{% endif %}>Нет</option><option value="1" {% if company.has_employees %}selected{% endif %}>Да</option></select></div>
+              <div class="col-6"><label class="form-label">Воинский</label><select name="has_military" class="form-select form-select-sm"><option value="0" {% if not company.has_military %}selected{% endif %}>Нет</option><option value="1" {% if company.has_military %}selected{% endif %}>Да</option></select></div>
             </div>
+            <button type="submit" class="btn btn-sm btn-primary w-100">Сохранить</button>
+          </form>
+          <form method="post" action="/company/{{ company.id }}/delete" class="mt-2" onsubmit="return confirm('Деактивировать компанию?')">
+            <button type="submit" class="btn btn-sm btn-outline-danger w-100"><i class="bi bi-trash me-1"></i>Деактивировать</button>
+          </form>
         </div>
+      </div>
     </div>
-
-    <!-- Описание -->
-    <div class="card shadow-sm mb-4">
-        <div class="card-header ch-secondary py-2 d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-file-text me-2"></i>Описание компании</span>
-            <button class="btn btn-sm btn-light" data-bs-toggle="collapse" data-bs-target="#descEdit">
-                <i class="bi bi-pencil me-1"></i>Редактировать
-            </button>
+  </div>
+  <div class="col-lg-8">
+    <div class="card mb-3">
+      <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-event me-2"></i>Дедлайны</span>
+        <div>
+          <span class="badge bg-danger me-1">{{ overdue|length }} просроч.</span>
+          <span class="badge bg-warning text-dark me-1">{{ pending|length }} активных</span>
+          <span class="badge bg-success">{{ done|length }} выполнено</span>
         </div>
+      </div>
+      <div class="card-body p-0">
+        {% set all_dl = overdue + pending %}
+        {% if all_dl %}
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Срок</th><th>Отчёт</th><th>Период</th><th>Статус</th><th></th></tr></thead>
+          <tbody>
+          {% for dl in all_dl %}
+          <tr class="{% if dl.status == 'overdue' or dl.days_left < 0 %}dl-overdue{% elif dl.days_left <= 3 %}dl-soon{% endif %}">
+            <td class="text-nowrap fw-semibold {% if dl.days_left < 0 %}text-danger{% endif %}">{{ dl.due_fmt }}</td>
+            <td>{{ dl.report_name }}</td>
+            <td class="text-muted">{{ dl.period or '—' }}</td>
+            <td>{% if dl.days_left < 0 %}<span class="badge bg-danger">просрочено {{ dl.days_left|abs }} дн</span>{% elif dl.days_left == 0 %}<span class="badge bg-danger">сегодня</span>{% elif dl.days_left <= 3 %}<span class="badge bg-warning text-dark">{{ dl.days_left }} дн</span>{% else %}<span class="badge bg-secondary">{{ dl.days_left }} дн</span>{% endif %}</td>
+            <td><form method="post" action="/company/{{ company.id }}/deadline/{{ dl.id }}/done" class="d-inline"><button class="btn btn-xs btn-outline-success" title="Выполнено"><i class="bi bi-check-lg"></i></button></form></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}<div class="p-3 text-muted">Нет активных дедлайнов</div>{% endif %}
+        {% if done %}
+        <details class="p-2">
+          <summary class="text-muted small">Показать выполненные ({{ done|length }})</summary>
+          <table class="table table-sm mb-0 mt-2">
+            <tbody>{% for dl in done %}<tr class="text-muted"><td>{{ dl.due_fmt }}</td><td>{{ dl.report_name }}</td><td><span class="badge bg-success">✓</span></td></tr>{% endfor %}</tbody>
+          </table>
+        </details>
+        {% endif %}
+      </div>
+    </div>
+    <div class="card mb-3">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-plus-circle me-2"></i>Добавить дедлайн</span>
+        <button class="btn btn-xs btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#addDl"><i class="bi bi-chevron-down"></i></button>
+      </div>
+      <div class="collapse" id="addDl">
         <div class="card-body">
-            {% if company.description %}
-            <p class="mb-2" style="white-space:pre-wrap">{{ company.description }}</p>
-            {% else %}
-            <p class="text-muted mb-2">Описание не добавлено</p>
-            {% endif %}
-            <div class="collapse" id="descEdit">
-                <form method="post" action="/company/{{ company.id }}/description" class="mt-2">
-                    <textarea name="description" class="form-control mb-2" rows="5"
-                              placeholder="Введите описание компании...">{{ company.description or '' }}</textarea>
-                    <button type="submit" class="btn btn-sm btn-success">Сохранить</button>
-                </form>
-            </div>
+          <form method="post" action="/company/{{ company.id }}/deadline/add" class="row g-2 align-items-end">
+            <div class="col-md-5"><label class="form-label">Название отчёта</label><input name="report_name" class="form-control form-control-sm" required placeholder="Декларация НДС"></div>
+            <div class="col-md-3"><label class="form-label">Срок сдачи</label><input name="due_date" type="date" class="form-control form-control-sm" value="{{ today_iso }}" required></div>
+            <div class="col-md-2"><label class="form-label">Период</label><input name="period" class="form-control form-control-sm" placeholder="Q1/2026"></div>
+            <div class="col-md-2"><label class="form-label">&nbsp;</label><button type="submit" class="btn btn-sm btn-primary w-100">Добавить</button></div>
+          </form>
         </div>
+      </div>
     </div>
-
-    <!-- Просроченные -->
-    {% if overdue %}
-    <section class="mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header ch-danger d-flex justify-content-between align-items-center py-2">
-                <span><i class="bi bi-exclamation-triangle-fill me-2"></i>Просроченные</span>
-                <span class="badge bg-white text-danger fw-bold">{{ overdue|length }}</span>
-            </div>
-            <div class="card-body p-0">
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
-                        <tr><th>Отчёт</th><th>Срок</th><th>Просрочено</th><th>Период</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                    {% for dl in overdue %}
-                        <tr class="row-overdue">
-                            <td><strong>{{ dl.report_name }}</strong></td>
-                            <td class="text-danger fw-bold">{{ dl.due_fmt }}</td>
-                            <td><span class="badge bg-danger">{{ dl.days_left|abs }} дн.</span></td>
-                            <td class="text-muted">{{ dl.period or '—' }}</td>
-                            <td>
-                                <form method="post" action="/company/{{ company.id }}/deadline/{{ dl.id }}/done" class="d-inline">
-                                    <button type="submit" class="btn btn-xs btn-outline-success btn-sm py-0 px-1">
-                                        <i class="bi bi-check2"></i> Выполнено
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </section>
-    {% endif %}
-
-    <!-- Предстоящие -->
-    <section class="mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header ch-primary d-flex justify-content-between align-items-center py-2">
-                <span><i class="bi bi-calendar-week me-2"></i>Предстоящие дедлайны</span>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="badge bg-white text-dark fw-bold">{{ pending|length }}</span>
-                    <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addDeadlineModal">
-                        <i class="bi bi-plus-lg me-1"></i>Добавить
-                    </button>
-                </div>
-            </div>
-            <div class="card-body p-0">
-            {% if pending %}
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
-                        <tr><th>Срок</th><th>Осталось</th><th>Отчёт</th><th>Период</th><th></th></tr>
-                    </thead>
-                    <tbody>
-                    {% for dl in pending %}
-                        <tr {% if dl.days_left <= 1 %}class="row-overdue"{% elif dl.days_left <= 3 %}class="row-warn"{% endif %}>
-                            <td><strong>{{ dl.due_fmt }}</strong></td>
-                            <td>
-                                {% if dl.days_left <= 0 %}<span class="badge bg-danger">Сегодня!</span>
-                                {% elif dl.days_left == 1 %}<span class="badge bg-danger">Завтра</span>
-                                {% elif dl.days_left <= 3 %}<span class="badge bg-warning text-dark">{{ dl.days_left }} дн.</span>
-                                {% else %}<span class="badge bg-info text-dark">{{ dl.days_left }} дн.</span>{% endif %}
-                            </td>
-                            <td>{{ dl.report_name }}</td>
-                            <td class="text-muted">{{ dl.period or '—' }}</td>
-                            <td>
-                                <form method="post" action="/company/{{ company.id }}/deadline/{{ dl.id }}/done" class="d-inline">
-                                    <button type="submit" class="btn btn-sm btn-outline-success py-0 px-1">
-                                        <i class="bi bi-check2"></i> Выполнено
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="p-4 text-center text-muted"><i class="bi bi-check-circle-fill text-success me-2"></i>Нет предстоящих дедлайнов</div>
-            {% endif %}
-            </div>
-        </div>
-    </section>
-
-    <!-- Выполненные -->
-    <section class="mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header ch-success d-flex justify-content-between align-items-center py-2">
-                <span><i class="bi bi-check-circle-fill me-2"></i>Выполненные</span>
-                <span class="badge bg-white text-dark fw-bold">{{ done|length }}</span>
-            </div>
-            <div class="card-body p-0">
-            {% if done %}
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
-                        <tr><th>Отчёт</th><th>Срок</th><th>Период</th></tr>
-                    </thead>
-                    <tbody>
-                    {% for dl in done %}
-                        <tr>
-                            <td>{{ dl.report_name }}</td>
-                            <td class="text-muted">{{ dl.due_fmt }}</td>
-                            <td class="text-muted">{{ dl.period or '—' }}</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="p-4 text-center text-muted">Нет выполненных дедлайнов</div>
-            {% endif %}
-            </div>
-        </div>
-    </section>
-
-    <!-- Доп. работы -->
-    <section class="mb-4">
-        <div class="card shadow-sm">
-            <div class="card-header ch-secondary d-flex justify-content-between align-items-center py-2">
-                <span><i class="bi bi-briefcase-fill me-2"></i>Доп. работы — {{ month_label }}</span>
-                <div class="d-flex align-items-center gap-2">
-                    {% if total_amount %}<span class="badge bg-white text-dark fw-bold">{{ total_amount|rub }} ₽ / {{ total_hours }} ч</span>{% endif %}
-                    <button class="btn btn-sm btn-light" data-bs-toggle="modal" data-bs-target="#addWorkModal">
-                        <i class="bi bi-plus-lg me-1"></i>Добавить
-                    </button>
-                </div>
-            </div>
-            <div class="card-body p-0">
-            {% if works %}
-                <table class="table table-sm table-hover mb-0">
-                    <thead class="table-light">
-                        <tr><th>Дата</th><th>Тип</th><th>Описание</th><th class="text-center">Часы</th><th class="text-center">Сумма</th></tr>
-                    </thead>
-                    <tbody>
-                    {% for w in works %}
-                        <tr>
-                            <td class="text-muted">{{ w.work_date_fmt }}</td>
-                            <td>{{ w.work_type or '—' }}</td>
-                            <td>{{ w.description or '—' }}</td>
-                            <td class="text-center">{{ w.hours or 0 }} ч</td>
-                            <td class="text-center">{{ (w.amount or 0)|rub }} ₽</td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <div class="p-4 text-center text-muted">Доп. работ за {{ month_label }} нет</div>
-            {% endif %}
-            </div>
-        </div>
-    </section>
-
-</div>
-
-<!-- Модал: редактировать компанию -->
-<div class="modal fade" id="editCompanyModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="/company/{{ company.id }}/edit">
-        <div class="modal-content">
-            <div class="modal-header" style="background:var(--brand);color:#fff">
-                <h5 class="modal-title">Редактировать компанию</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">СНО</label>
-                    <select name="tax_system" class="form-select">
-                        {% for s in ['УСН','ОСН','ЕСХН','ПСН','АУСН'] %}
-                        <option value="{{ s }}" {% if company.tax_system == s %}selected{% endif %}>{{ s }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Тип организации</label>
-                    <select name="org_type" class="form-select">
-                        <option value="ООО" {% if company.org_type == 'ООО' %}selected{% endif %}>ООО</option>
-                        <option value="ИП" {% if company.org_type == 'ИП' %}selected{% endif %}>ИП</option>
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Главный бухгалтер</label>
-                    <select name="accountant_id" class="form-select">
-                        <option value="">— не назначен —</option>
-                        {% for a in accountants %}
-                        <option value="{{ a.id }}" {% if company.accountant_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Бухгалтер по з/п</label>
-                    <select name="payroll_accountant_id" class="form-select">
-                        <option value="">— не назначен —</option>
-                        {% for a in accountants %}
-                        <option value="{{ a.id }}" {% if company.payroll_accountant_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Операционист</label>
-                    <select name="operator_id" class="form-select">
-                        <option value="">— не назначен —</option>
-                        {% for a in accountants %}
-                        <option value="{{ a.id }}" {% if company.operator_id == a.id %}selected{% endif %}>{{ a.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="has_employees" value="1" id="chkEmp"
-                            {% if company.has_employees %}checked{% endif %}>
-                        <label class="form-check-label" for="chkEmp">Есть сотрудники</label>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="has_military" value="1" id="chkMil"
-                            {% if company.has_military %}checked{% endif %}>
-                        <label class="form-check-label" for="chkMil">Воинский учёт</label>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="submit" class="btn btn-primary" style="background:var(--brand);border-color:var(--brand)">Сохранить</button>
-            </div>
-        </div>
-        </form>
+    <div class="card mb-3">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-briefcase me-2"></i>Доп. работы — {{ month_label }}</span>
+        <span class="text-muted">{{ total_hours }}ч / {{ total_amount | rub }} ₽</span>
+      </div>
+      <div class="card-body p-0">
+        {% if works %}
+        <table class="table table-hover mb-0 align-middle">
+          <thead><tr><th>Дата</th><th>Тип</th><th>Описание</th><th>Бухгалтер</th><th>Часы</th><th>Сумма ₽</th></tr></thead>
+          <tbody>
+          {% for w in works %}
+          <tr>
+            <td class="text-nowrap">{{ w.work_date_fmt }}</td>
+            <td class="text-muted">{{ w.work_type }}</td>
+            <td>{{ w.description }}</td>
+            <td class="text-muted">{{ w.accountant_name or '—' }}</td>
+            <td>{{ w.hours or 0 }}</td>
+            <td class="fw-semibold">{{ w.amount | rub }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}<div class="p-3 text-muted">Доп. работ за {{ month_label }} нет</div>{% endif %}
+      </div>
     </div>
-</div>
-
-<!-- Модал: добавить дедлайн -->
-<div class="modal fade" id="addDeadlineModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="/company/{{ company.id }}/deadline/add">
-        <div class="modal-content">
-            <div class="modal-header" style="background:var(--brand);color:#fff">
-                <h5 class="modal-title">Добавить дедлайн</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Название отчёта</label>
-                    <input type="text" name="report_name" class="form-control" required placeholder="Например: УСН декларация">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Срок сдачи</label>
-                    <input type="date" name="due_date" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Период (необязательно)</label>
-                    <input type="text" name="period" class="form-control" placeholder="Например: 2026 год">
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="submit" class="btn btn-primary" style="background:var(--brand);border-color:var(--brand)">Добавить</button>
-            </div>
+    <div class="card">
+      <div class="card-header bg-light d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-plus-circle me-2"></i>Добавить доп. работу</span>
+        <button class="btn btn-xs btn-outline-primary" data-bs-toggle="collapse" data-bs-target="#addWork"><i class="bi bi-chevron-down"></i></button>
+      </div>
+      <div class="collapse" id="addWork">
+        <div class="card-body">
+          <form method="post" action="/company/{{ company.id }}/work/add" class="row g-2 align-items-end">
+            <div class="col-md-4"><label class="form-label">Описание</label><input name="description" class="form-control form-control-sm" required></div>
+            <div class="col-md-2"><label class="form-label">Тип</label><select name="work_type" class="form-select form-select-sm"><option>Консультация</option><option>Восстановление учёта</option><option>Кадровое делопроизводство</option><option>Регистрация/ликвидация</option><option>Прочее</option></select></div>
+            <div class="col-md-2"><label class="form-label">Дата</label><input name="work_date" type="date" class="form-control form-control-sm" value="{{ today_iso }}" required></div>
+            <div class="col-md-1"><label class="form-label">Часы</label><input name="hours" type="number" step="0.5" class="form-control form-control-sm" value="0"></div>
+            <div class="col-md-2"><label class="form-label">Сумма ₽</label><input name="amount" type="number" class="form-control form-control-sm" value="0"></div>
+            <div class="col-md-1"><label class="form-label">&nbsp;</label><button type="submit" class="btn btn-sm btn-primary w-100">+</button></div>
+          </form>
         </div>
-        </form>
+      </div>
     </div>
+  </div>
 </div>
-
-<!-- Модал: добавить доп. работу -->
-<div class="modal fade" id="addWorkModal" tabindex="-1">
-    <div class="modal-dialog">
-        <form method="post" action="/company/{{ company.id }}/work/add">
-        <div class="modal-content">
-            <div class="modal-header" style="background:var(--brand2);color:#fff">
-                <h5 class="modal-title">Добавить доп. работу</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">Описание</label>
-                    <input type="text" name="description" class="form-control" required placeholder="Что было сделано">
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Тип работы</label>
-                    <select name="work_type" class="form-select">
-                        {% for wt in ['Консультация','Восстановление учёта','Кадры','Отчётность','Прочее'] %}
-                        <option>{{ wt }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Бухгалтер</label>
-                    <select name="accountant_id" class="form-select">
-                        <option value="">— не указан —</option>
-                        {% for a in accountants %}
-                        <option value="{{ a.id }}">{{ a.name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="row g-2">
-                    <div class="col-4">
-                        <label class="form-label">Дата</label>
-                        <input type="date" name="work_date" class="form-control" required value="{{ today_iso }}">
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label">Часы</label>
-                        <input type="number" name="hours" class="form-control" value="0" min="0" step="0.5">
-                    </div>
-                    <div class="col-4">
-                        <label class="form-label">Сумма ₽</label>
-                        <input type="number" name="amount" class="form-control" value="0" min="0">
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                <button type="submit" class="btn btn-success">Добавить</button>
-            </div>
-        </div>
-        </form>
-    </div>
-</div>
-
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+{% endblock %}

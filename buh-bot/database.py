@@ -29,19 +29,21 @@ def init_db() -> None:
             );
 
             CREATE TABLE IF NOT EXISTS companies (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                name            TEXT NOT NULL,
-                inn             TEXT,
-                tax_system      TEXT NOT NULL,
-                org_type        TEXT DEFAULT 'ООО',
-                has_employees   INTEGER DEFAULT 0,
-                has_military    INTEGER DEFAULT 0,
-                max_group_id    TEXT,
-                accountant_id   INTEGER REFERENCES accountants(id),
-                work_standard   TEXT,
-                notes           TEXT,
-                is_active       INTEGER DEFAULT 1,
-                created_at      TEXT DEFAULT (datetime('now'))
+                id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+                name                 TEXT NOT NULL,
+                inn                  TEXT,
+                tax_system           TEXT NOT NULL,
+                org_type             TEXT DEFAULT 'ООО',
+                has_employees        INTEGER DEFAULT 0,
+                has_military         INTEGER DEFAULT 0,
+                has_stats_reporting  INTEGER DEFAULT 0,
+                max_group_id         TEXT,
+                accountant_id        INTEGER REFERENCES accountants(id),
+                work_standard        TEXT,
+                description          TEXT,
+                notes                TEXT,
+                is_active            INTEGER DEFAULT 1,
+                created_at           TEXT DEFAULT (datetime('now'))
             );
 
             CREATE TABLE IF NOT EXISTS accountant_errors (
@@ -58,9 +60,9 @@ def init_db() -> None:
                 company_id    INTEGER NOT NULL REFERENCES companies(id),
                 report_name   TEXT NOT NULL,
                 report_type   TEXT NOT NULL,
-                due_date      TEXT NOT NULL,            -- ISO date YYYY-MM-DD
-                period        TEXT,                     -- Q1/2025, 2025 год и т.п.
-                status        TEXT DEFAULT 'pending',   -- pending / done / overdue
+                due_date      TEXT NOT NULL,
+                period        TEXT,
+                status        TEXT DEFAULT 'pending',
                 completed_at  TEXT,
                 notes         TEXT,
                 created_at    TEXT DEFAULT (datetime('now'))
@@ -80,8 +82,8 @@ def init_db() -> None:
                 title         TEXT NOT NULL,
                 description   TEXT,
                 due_date      TEXT,
-                status        TEXT DEFAULT 'pending',   -- pending / in_progress / done / overdue
-                priority      TEXT DEFAULT 'normal',    -- low / normal / high
+                status        TEXT DEFAULT 'pending',
+                priority      TEXT DEFAULT 'normal',
                 created_at    TEXT DEFAULT (datetime('now')),
                 completed_at  TEXT
             );
@@ -98,7 +100,6 @@ def init_db() -> None:
                 created_at    TEXT DEFAULT (datetime('now'))
             );
         """)
-        # Миграция: добавляем колонки если БД уже существовала без них
         _migrate(conn)
 
 
@@ -115,12 +116,13 @@ def _migrate(conn) -> None:
         "ALTER TABLE accountants ADD COLUMN is_remote INTEGER DEFAULT 0",
         "ALTER TABLE accountants ADD COLUMN tg TEXT",
         "ALTER TABLE companies ADD COLUMN description TEXT",
+        "ALTER TABLE companies ADD COLUMN has_stats_reporting INTEGER DEFAULT 0",
     ]
     for sql in migrations:
         try:
             conn.execute(sql)
         except Exception:
-            pass  # Колонка уже есть — игнорируем
+            pass
 
 
 @contextmanager
@@ -180,17 +182,20 @@ def add_company(
     max_group_id: str = None,
     accountant_id: int = None,
     work_standard: str = None,
-    notes: str = None
+    notes: str = None,
+    description: str = None,
+    has_stats_reporting: bool = False,
 ) -> int:
     with get_db() as conn:
         cur = conn.execute(
             """INSERT INTO companies
                (name, inn, tax_system, org_type, has_employees, has_military,
-                max_group_id, accountant_id, work_standard, notes)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                has_stats_reporting, max_group_id, accountant_id, work_standard,
+                notes, description)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (name, inn, tax_system, org_type,
-             int(has_employees), int(has_military),
-             max_group_id, accountant_id, work_standard, notes)
+             int(has_employees), int(has_military), int(has_stats_reporting),
+             max_group_id, accountant_id, work_standard, notes, description)
         )
         return cur.lastrowid
 
@@ -257,7 +262,7 @@ def add_deadline(
     company_id: int,
     report_name: str,
     report_type: str,
-    due_date: str,  # YYYY-MM-DD
+    due_date: str,
     period: str = None
 ) -> int:
     with get_db() as conn:
@@ -292,7 +297,6 @@ def get_deadlines_for_company(company_id: int, status: str = None) -> list:
 
 
 def get_upcoming_deadlines(days_ahead: int = 30) -> list:
-    """Все дедлайны на ближайшие N дней (pending)."""
     from datetime import timedelta
     today = date.today().isoformat()
     future_date = (date.today() + timedelta(days=days_ahead)).isoformat()
@@ -308,6 +312,26 @@ def get_upcoming_deadlines(days_ahead: int = 30) -> list:
                  AND c.is_active = 1
                ORDER BY rd.due_date""",
             (today, future_date)
+        ).fetchall()
+
+
+def get_deadlines_7days() -> list:
+    """Все дедлайны на ближайшие 7 дней (pending + просроченные)."""
+    from datetime import timedelta
+    today = date.today().isoformat()
+    week = (date.today() + timedelta(days=7)).isoformat()
+    with get_db() as conn:
+        return conn.execute(
+            """SELECT rd.*, c.name as company_name, c.max_group_id,
+                      a.name as accountant_name, a.max_user_id as accountant_max_id
+               FROM report_deadlines rd
+               JOIN companies c ON rd.company_id = c.id
+               LEFT JOIN accountants a ON c.accountant_id = a.id
+               WHERE rd.status = 'pending'
+                 AND rd.due_date <= ?
+                 AND c.is_active = 1
+               ORDER BY rd.due_date""",
+            (week,)
         ).fetchall()
 
 
@@ -488,12 +512,11 @@ def get_additional_works_for_company_month(company_id: int, year: int, month: in
 # ─── Обновление компании ──────────────────────────────────────────────────────
 
 def update_company(company_id: int, **fields) -> None:
-    """Обновляет произвольные поля компании."""
     allowed = {
         'name', 'inn', 'tax_system', 'org_type', 'has_employees',
-        'has_military', 'max_group_id', 'accountant_id', 'work_standard',
-        'notes', 'is_active', 'payroll_accountant_id', 'operator_id',
-        'description'
+        'has_military', 'has_stats_reporting', 'max_group_id', 'accountant_id',
+        'work_standard', 'notes', 'is_active', 'payroll_accountant_id',
+        'operator_id', 'description'
     }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
@@ -554,10 +577,10 @@ def get_error_count_for_accountant(accountant_id: int, year: int, month: int) ->
         return row[0] if row else 0
 
 
-# ─── Обновлённая статистика с ошибками ───────────────────────────────────────
+# ─── KPI бухгалтеров ──────────────────────────────────────────────────────────
 
 def get_accountant_stats_full(year: int, month: int) -> list:
-    """KPI по каждому бухгалтеру за месяц, включая ошибки."""
+    """KPI по каждому бухгалтеру за месяц с корректным подсчётом компаний."""
     start = f"{year}-{month:02d}-01"
     end = f"{year}-{month+1:02d}-01" if month < 12 else f"{year+1}-01-01"
     today = date.today().isoformat()
@@ -565,7 +588,8 @@ def get_accountant_stats_full(year: int, month: int) -> list:
         return conn.execute(
             """SELECT
                 a.id, a.name,
-                COUNT(DISTINCT c.id) as company_count,
+                (SELECT COUNT(*) FROM companies
+                 WHERE accountant_id = a.id AND is_active = 1) as company_count,
                 (SELECT COUNT(*) FROM report_deadlines rd
                  JOIN companies cc ON rd.company_id = cc.id
                  WHERE cc.accountant_id = a.id
@@ -589,13 +613,75 @@ def get_accountant_stats_full(year: int, month: int) -> list:
                  WHERE aw.accountant_id = a.id
                    AND aw.work_date >= ? AND aw.work_date < ?) as extra_amount
                FROM accountants a
-               LEFT JOIN companies c ON c.accountant_id = a.id AND c.is_active = 1
-               GROUP BY a.id, a.name
                ORDER BY a.name""",
-            (start, end,       # total_deadlines
-             start, end,       # done_deadlines
-             start, end, today,  # overdue: в рамках месяца И уже прошедшие
-             start, end,       # error_count
-             start, end,       # extra_hours
-             start, end)       # extra_amount
+            (start, end,
+             start, end,
+             start, end, today,
+             start, end,
+             start, end,
+             start, end)
         ).fetchall()
+
+
+# ─── Аналитика ────────────────────────────────────────────────────────────────
+
+def get_analytics_summary() -> dict:
+    """
+    Возвращает аналитику по компаниям:
+    - разбивка по налоговым системам
+    - разбивка по типам организаций
+    - список компаний с описанием для группировки по видам деятельности
+    """
+    with get_db() as conn:
+        # По системам налогообложения
+        by_tax = conn.execute(
+            """SELECT tax_system, COUNT(*) as cnt
+               FROM companies WHERE is_active = 1
+               GROUP BY tax_system ORDER BY cnt DESC"""
+        ).fetchall()
+
+        # По типам организаций
+        by_org = conn.execute(
+            """SELECT org_type, COUNT(*) as cnt
+               FROM companies WHERE is_active = 1
+               GROUP BY org_type ORDER BY cnt DESC"""
+        ).fetchall()
+
+        # Общее количество
+        total = conn.execute(
+            "SELECT COUNT(*) FROM companies WHERE is_active = 1"
+        ).fetchone()[0]
+
+        # С сотрудниками / без
+        with_emp = conn.execute(
+            "SELECT COUNT(*) FROM companies WHERE is_active = 1 AND has_employees = 1"
+        ).fetchone()[0]
+
+        # С воинским учётом
+        with_mil = conn.execute(
+            "SELECT COUNT(*) FROM companies WHERE is_active = 1 AND has_military = 1"
+        ).fetchone()[0]
+
+        # Без закреплённого бухгалтера
+        no_accountant = conn.execute(
+            "SELECT COUNT(*) FROM companies WHERE is_active = 1 AND accountant_id IS NULL"
+        ).fetchone()[0]
+
+        # Компании с описанием (для группировки по видам деятельности)
+        companies_with_desc = conn.execute(
+            """SELECT name, tax_system, org_type, description, accountant_name
+               FROM companies c
+               LEFT JOIN accountants a ON c.accountant_id = a.id
+               WHERE c.is_active = 1
+               ORDER BY c.tax_system, c.name"""
+        ).fetchall()
+
+        return {
+            'total': total,
+            'by_tax': by_tax,
+            'by_org': by_org,
+            'with_employees': with_emp,
+            'with_military': with_mil,
+            'no_accountant': no_accountant,
+            'companies_with_desc': companies_with_desc,
+        }

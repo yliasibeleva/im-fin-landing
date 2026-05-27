@@ -36,13 +36,16 @@ storage = StateStorage()
 # ── Состояния: добавление компании ───────────────────────────────────────────
 ADD_CO_NAME       = 'add_co_name'
 ADD_CO_INN        = 'add_co_inn'
+ADD_CO_DESC       = 'add_co_desc'       # описание бизнеса (новое)
 ADD_CO_TAX        = 'add_co_tax'
 ADD_CO_ORG        = 'add_co_org'
 ADD_CO_EMPLOYEES  = 'add_co_employees'
 ADD_CO_MILITARY   = 'add_co_military'
+ADD_CO_STATS      = 'add_co_stats'      # статотчётность (новое)
 ADD_CO_GROUP      = 'add_co_group'
 ADD_CO_ACCOUNTANT = 'add_co_accountant'
 ADD_CO_CONFIRM    = 'add_co_confirm'
+ADD_CO_STANDARD   = 'add_co_standard'
 
 # ── Состояния: добавление бухгалтера ─────────────────────────────────────────
 ADD_ACC_NAME   = 'add_acc_name'
@@ -82,5 +85,5 @@ ADD_ERR_COMPANY    = 'add_err_company'
 ADD_ERR_DESC       = 'add_err_desc'
 ADD_ERR_DATE       = 'add_err_date'
 
-# ── Состояния: добавление стандарта работы ───────────────────────────────────
-ADD_CO_STANDARD    = 'add_co_standard'
+# ── Состояния: привязка группы Max ───────────────────────────────────────────
+BIND_GROUP_SELECT  = 'bind_group_select'

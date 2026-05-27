@@ -304,13 +304,13 @@ async def accountant_add(
     position: Optional[str] = Form(None),
     phone: Optional[str] = Form(None),
     tg: Optional[str] = Form(None),
-    is_remote: str = Form('0'),
+    is_remote: Optional[str] = Form(None),
 ):
     def _add():
         with db.get_db() as conn:
             conn.execute(
                 'INSERT INTO accountants (name, position, phone, tg, is_remote) VALUES (?,?,?,?,?)',
-                (name, position or None, phone or None, tg or None, int(is_remote))
+                (name, position or None, phone or None, tg or None, 1 if is_remote else 0)
             )
     await asyncio.to_thread(_add)
     return RedirectResponse('/accountants', status_code=303)
@@ -325,13 +325,15 @@ async def accountant_edit(
     phone: Optional[str] = Form(None),
     email: Optional[str] = Form(None),
     tg: Optional[str] = Form(None),
-    is_remote: str = Form('0'),
+    max_user_id: Optional[str] = Form(None),
+    is_remote: Optional[str] = Form(None),
 ):
     def _update():
         with db.get_db() as conn:
             conn.execute(
-                'UPDATE accountants SET name=?, position=?, phone=?, email=?, tg=?, is_remote=? WHERE id=?',
-                (name, position or None, phone or None, email or None, tg or None, int(is_remote), accountant_id)
+                'UPDATE accountants SET name=?, position=?, phone=?, email=?, tg=?, max_user_id=?, is_remote=? WHERE id=?',
+                (name, position or None, phone or None, email or None, tg or None,
+                 max_user_id or None, 1 if is_remote else 0, accountant_id)
             )
     await asyncio.to_thread(_update)
     return RedirectResponse('/accountants', status_code=303)

@@ -5,8 +5,6 @@
   - Ровно один @dp.message_created(F.message.body.text)
   - Ровно один @dp.message_callback()
   Вся маршрутизация — внутри этих двух функций.
-  Конкретные @dp.message_callback(F.payload...) не использовать —
-  в maxapi catch-all блокирует специфичные, зарегистрированные после него.
 """
 import asyncio
 import logging
@@ -23,7 +21,8 @@ import states as st
 import excel_report
 from calendar_data import (
     generate_deadlines, TAX_SYSTEMS, ORG_TYPES, WORK_TYPES,
-    STATUS_LABELS, PRIORITY_LABELS
+    STATUS_LABELS, PRIORITY_LABELS, NO_ACCOUNTANT_LABEL,
+    default_work_standard,
 )
 from config import ADMIN_IDS
 
@@ -62,6 +61,10 @@ def deadline_emoji(iso_date: str, status: str) -> str:
     if dl <= 3:  return '🟠'
     if dl <= 7:  return '🟡'
     return '🟢'
+
+
+def accountant_label(name) -> str:
+    return name if name else NO_ACCOUNTANT_LABEL
 
 
 async def run_db(func, *args):
@@ -134,6 +137,26 @@ async def cmd_status(event: MessageCreated):
     await event.message.answer('\n'.join(lines), parse_mode='html')
 
 
+# ─── /bind_group (привязка группы Max к компании) ────────────────────────────
+
+@dp.message_created(Command('bind_group'))
+async def cmd_bind_group(event: MessageCreated):
+    user_id = str(event.from_user.user_id)
+    if not is_admin(user_id): return
+    chat_id = str(event.chat.chat_id)
+    companies = await run_db(db.get_all_companies)
+    if not companies:
+        await event.message.answer("Компаний нет. Добавьте: /add_company"); return
+    st.storage.set(user_id, st.BIND_GROUP_SELECT, bind_chat_id=chat_id)
+    await event.message.answer(
+        f"🔗 <b>Привязка группы Max</b>\n\n"
+        f"Chat ID этой группы: <code>{chat_id}</code>\n\n"
+        f"Выберите компанию для привязки:",
+        parse_mode='html',
+        attachments=[kb.companies_keyboard(companies, 'bind_co')]
+    )
+
+
 # ─── Команды добавления (admin) ───────────────────────────────────────────────
 
 @dp.message_created(Command('add_company'))
@@ -142,7 +165,7 @@ async def cmd_add_company(event: MessageCreated):
     if not is_admin(user_id): return
     st.storage.set(user_id, st.ADD_CO_NAME)
     await event.message.answer(
-        "🏢 <b>Добавление компании</b>\n\nШаг 1/9. Введите <b>название</b>:",
+        "🏢 <b>Добавление компании</b>\n\nШаг 1/11. Введите <b>название</b>:",
         parse_mode='html', attachments=[kb.cancel_keyboard()]
     )
 
@@ -292,8 +315,21 @@ async def cmd_upcoming(event: MessageCreated):
     await event.message.answer('\n'.join(lines), parse_mode='html')
 
 
+@dp.message_created(Command('analytics'))
+async def cmd_analytics(event: MessageCreated):
+    user_id = str(event.from_user.user_id)
+    if not is_admin(user_id): return
+    await _show_analytics_msg(event)
+
+
+@dp.message_created(Command('week'))
+async def cmd_week(event: MessageCreated):
+    user_id = str(event.from_user.user_id)
+    if not is_admin(user_id): return
+    await _show_week_deadlines_msg(event)
+
+
 # ─── Единый обработчик текста ─────────────────────────────────────────────────
-# ВАЖНО: ровно один @dp.message_created(F.message.body.text) на весь файл.
 
 @dp.message_created(F.message.body.text)
 async def text_handler(event: MessageCreated):
@@ -315,15 +351,25 @@ async def text_handler(event: MessageCreated):
         st.storage.update(user_id, name=text)
         st.storage.set(user_id, st.ADD_CO_INN, **st.storage.get_data(user_id))
         await event.message.answer(
-            f"Название: <b>{text}</b>\n\nШаг 2/9. Введите <b>ИНН</b> (или «Пропустить»):",
+            f"Название: <b>{text}</b>\n\nШаг 2/11. Введите <b>ИНН</b> (или «Пропустить»):",
             parse_mode='html', attachments=[kb.skip_keyboard('skip_inn')]
         )
 
     elif state == st.ADD_CO_INN:
         st.storage.update(user_id, inn=text)
+        st.storage.set(user_id, st.ADD_CO_DESC, **st.storage.get_data(user_id))
+        await event.message.answer(
+            "Шаг 3/11. Опишите <b>вид деятельности</b> / бизнес клиента\n"
+            "(например: «Торговля строительными материалами, опт»)\n\n"
+            "Или нажмите «Пропустить»:",
+            parse_mode='html', attachments=[kb.skip_keyboard('skip_desc')]
+        )
+
+    elif state == st.ADD_CO_DESC:
+        st.storage.update(user_id, description=text)
         st.storage.set(user_id, st.ADD_CO_TAX, **st.storage.get_data(user_id))
         await event.message.answer(
-            "Шаг 3/9. Выберите <b>систему налогообложения</b>:",
+            "Шаг 4/11. Выберите <b>систему налогообложения</b>:",
             parse_mode='html', attachments=[kb.tax_system_keyboard()]
         )
 
@@ -478,14 +524,10 @@ async def text_handler(event: MessageCreated):
         await _save_error(event, user_id, err_date)
 
     else:
-        # Состояние ожидает нажатия кнопки — текст не обрабатывается
         await event.message.answer("Пожалуйста, используйте кнопки 👇")
 
 
 # ─── Единый обработчик callbacks ─────────────────────────────────────────────
-# ВАЖНО: ровно один @dp.message_callback() на весь файл.
-# Специфичные @dp.message_callback(F.payload...) НЕ использовать —
-# в maxapi они не вызываются если catch-all зарегистрирован раньше.
 
 @dp.message_callback()
 async def callback_handler(callback: MessageCallback):
@@ -506,11 +548,13 @@ async def callback_handler(callback: MessageCallback):
         if action == 'companies':      await _show_companies(callback)
         elif action == 'accountants':  await _show_accountants(callback)
         elif action == 'upcoming':     await _show_upcoming(callback)
+        elif action == 'week':         await _show_week_deadlines(callback)
         elif action == 'overdue':      await _show_overdue(callback)
         elif action == 'report':       await _show_monthly_report(callback)
         elif action == 'report_excel': await _send_excel_report(callback)
         elif action == 'kpi':          await _show_kpi(callback)
         elif action == 'errors':       await _show_errors_log(callback)
+        elif action == 'analytics':    await _show_analytics(callback)
         return
 
     # ── Меню бухгалтера ───────────────────────────────────────────────────────
@@ -521,9 +565,19 @@ async def callback_handler(callback: MessageCallback):
     # ── Пропуски ──────────────────────────────────────────────────────────────
     if payload == 'skip_inn':
         st.storage.update(user_id, inn=None)
+        st.storage.set(user_id, st.ADD_CO_DESC, **st.storage.get_data(user_id))
+        await callback.message.answer(
+            "Шаг 3/11. Опишите <b>вид деятельности</b> / бизнес клиента\n"
+            "(например: «Торговля стройматериалами»)\n\nИли «Пропустить»:",
+            parse_mode='html', attachments=[kb.skip_keyboard('skip_desc')]
+        )
+        return
+
+    if payload == 'skip_desc':
+        st.storage.update(user_id, description=None)
         st.storage.set(user_id, st.ADD_CO_TAX, **st.storage.get_data(user_id))
         await callback.message.answer(
-            "Шаг 3/9. Выберите <b>систему налогообложения</b>:",
+            "Шаг 4/11. Выберите <b>систему налогообложения</b>:",
             parse_mode='html', attachments=[kb.tax_system_keyboard()]
         )
         return
@@ -544,6 +598,17 @@ async def callback_handler(callback: MessageCallback):
 
     if payload == 'skip_standard':
         st.storage.update(user_id, work_standard=None)
+        await _save_company(callback, user_id)
+        return
+
+    if payload == 'use_default_standard':
+        data = st.storage.get_data(user_id)
+        standard = default_work_standard(
+            data.get('tax_system', ''),
+            data.get('org_type', 'ООО'),
+            bool(data.get('has_employees', False))
+        )
+        st.storage.update(user_id, work_standard=standard)
         await _save_company(callback, user_id)
         return
 
@@ -577,7 +642,6 @@ async def callback_handler(callback: MessageCallback):
         return
 
     # ── Система налогообложения ───────────────────────────────────────────────
-    # Обрабатываем с учётом контекста: добавление или редактирование
     if payload.startswith('tax:'):
         ts = payload.split(':', 1)[1]
         if state == st.EDIT_CO_VALUE:
@@ -586,11 +650,10 @@ async def callback_handler(callback: MessageCallback):
             st.storage.clear(user_id)
             await callback.message.answer(f"✅ СНО обновлена: <b>{ts}</b>.", parse_mode='html')
         else:
-            # Поток добавления компании
             st.storage.update(user_id, tax_system=ts)
             st.storage.set(user_id, st.ADD_CO_ORG, **st.storage.get_data(user_id))
             await callback.message.answer(
-                f"СНО: <b>{ts}</b>\n\nШаг 4/9. Тип организации:",
+                f"СНО: <b>{ts}</b>\n\nШаг 5/11. Тип организации:",
                 parse_mode='html', attachments=[kb.org_type_keyboard()]
             )
         return
@@ -607,7 +670,7 @@ async def callback_handler(callback: MessageCallback):
             st.storage.update(user_id, org_type=org)
             st.storage.set(user_id, st.ADD_CO_EMPLOYEES, **st.storage.get_data(user_id))
             await callback.message.answer(
-                f"Тип: <b>{org}</b>\n\nШаг 5/9. Есть <b>сотрудники</b>?",
+                f"Тип: <b>{org}</b>\n\nШаг 6/11. Есть <b>сотрудники</b>?",
                 parse_mode='html', attachments=[kb.yn_keyboard('emp:yes', 'emp:no')]
             )
         return
@@ -624,7 +687,7 @@ async def callback_handler(callback: MessageCallback):
             st.storage.update(user_id, has_employees=has_emp)
             st.storage.set(user_id, st.ADD_CO_MILITARY, **st.storage.get_data(user_id))
             await callback.message.answer(
-                f"Сотрудники: <b>{'Да' if has_emp else 'Нет'}</b>\n\nШаг 6/9. <b>Воинский учёт</b>?",
+                f"Сотрудники: <b>{'Да' if has_emp else 'Нет'}</b>\n\nШаг 7/11. <b>Воинский учёт</b>?",
                 parse_mode='html', attachments=[kb.yn_keyboard('mil:yes', 'mil:no')]
             )
         return
@@ -639,10 +702,29 @@ async def callback_handler(callback: MessageCallback):
             await callback.message.answer("✅ Обновлено.")
         else:
             st.storage.update(user_id, has_military=has_mil)
-            st.storage.set(user_id, st.ADD_CO_GROUP, **st.storage.get_data(user_id))
+            st.storage.set(user_id, st.ADD_CO_STATS, **st.storage.get_data(user_id))
             await callback.message.answer(
                 f"Воинский учёт: <b>{'Да' if has_mil else 'Нет'}</b>\n\n"
-                f"Шаг 7/9. Введите <b>ID группы Max</b> для уведомлений\n"
+                f"Шаг 8/11. <b>Статистическая отчётность</b> (Росстат)?\n"
+                f"(П-4, 1-предприятие, МП и др.)",
+                parse_mode='html', attachments=[kb.yn_keyboard('stats:yes', 'stats:no')]
+            )
+        return
+
+    # ── Статистическая отчётность ─────────────────────────────────────────────
+    if payload in ('stats:yes', 'stats:no'):
+        has_stats = payload == 'stats:yes'
+        if state == st.EDIT_CO_VALUE:
+            data = st.storage.get_data(user_id)
+            await run_db(db.update_company, data['edit_company_id'], has_stats_reporting=int(has_stats))
+            st.storage.clear(user_id)
+            await callback.message.answer("✅ Обновлено.")
+        else:
+            st.storage.update(user_id, has_stats_reporting=has_stats)
+            st.storage.set(user_id, st.ADD_CO_GROUP, **st.storage.get_data(user_id))
+            await callback.message.answer(
+                f"Статотчётность: <b>{'Да' if has_stats else 'Нет'}</b>\n\n"
+                f"Шаг 9/11. Введите <b>ID группы Max</b> для уведомлений\n"
                 f"(напишите /myid в нужной группе)\nИли «Пропустить»:",
                 parse_mode='html', attachments=[kb.skip_keyboard('skip_group')]
             )
@@ -666,11 +748,10 @@ async def callback_handler(callback: MessageCallback):
         st.storage.update(user_id, accountant_id=acc_id)
         st.storage.set(user_id, st.ADD_CO_STANDARD, **st.storage.get_data(user_id))
         await callback.message.answer(
-            "Шаг 9/9. Опишите <b>стандарт работы</b> (что входит в базовый пакет).\n\n"
-            "Пример:\n✅ Бухучёт (ОСН)\n✅ Расчёт зарплаты (3 чел.)\n"
-            "✅ Кадровое делопроизводство\n✅ Квартальная отчётность\n\n"
-            "Или нажмите «Пропустить»:",
-            parse_mode='html', attachments=[kb.skip_keyboard('skip_standard')]
+            "Шаг 11/11. Опишите <b>стандарт базового обслуживания</b>.\n\n"
+            "Введите вручную или нажмите «Типовой стандарт» для автозаполнения.",
+            parse_mode='html',
+            attachments=[kb.skip_or_default_keyboard('skip_standard', 'use_default_standard')]
         )
         return
 
@@ -686,6 +767,7 @@ async def callback_handler(callback: MessageCallback):
             org_type=company['org_type'] or 'ООО',
             has_employees=bool(company['has_employees']),
             has_military=bool(company['has_military']),
+            has_stats_reporting=bool(company.get('has_stats_reporting', 0)),
         )
         await run_db(db.add_deadlines_bulk, deadlines)
         await callback.message.answer(
@@ -811,13 +893,17 @@ async def callback_handler(callback: MessageCallback):
         if not company:
             await callback.message.answer("Компания не найдена."); return
         st.storage.set(user_id, st.EDIT_CO_FIELD, edit_company_id=co_id)
+        acc_name = company['accountant_name'] or NO_ACCOUNTANT_LABEL
+        stats_flag = '✅' if company.get('has_stats_reporting') else '❌'
         info = (
             f"🏢 <b>{company['name']}</b>\n"
             f"ИНН: {company['inn'] or '—'} | {company['tax_system']} | {company['org_type'] or '—'}\n"
             f"Сотрудники: {'Да' if company['has_employees'] else 'Нет'} | "
-            f"Воинский учёт: {'Да' if company['has_military'] else 'Нет'}\n"
-            f"Бухгалтер: {company['accountant_name'] or '—'}\n"
-            f"Max-группа: {company['max_group_id'] or 'не привязана'}\n\n"
+            f"Воинский учёт: {'Да' if company['has_military'] else 'Нет'} | "
+            f"Статотчётность: {stats_flag}\n"
+            f"Бухгалтер: {acc_name}\n"
+            f"Max-группа: {company['max_group_id'] or 'не привязана'}\n"
+            f"Описание: {company.get('description') or '— не заполнено —'}\n\n"
             f"<b>Стандарт работы:</b>\n{company['work_standard'] or '— не заполнен —'}\n\n"
             f"Что редактируем?"
         )
@@ -840,6 +926,12 @@ async def callback_handler(callback: MessageCallback):
                 parse_mode='html',
                 attachments=[kb.yn_keyboard(f'edit_bool:{field}:1', f'edit_bool:{field}:0')]
             )
+        elif field == 'has_stats_reporting':
+            await callback.message.answer(
+                "Вести <b>статистическую отчётность</b> (Росстат)?",
+                parse_mode='html',
+                attachments=[kb.yn_keyboard('edit_bool:has_stats_reporting:1', 'edit_bool:has_stats_reporting:0')]
+            )
         elif field == 'tax_system':
             await callback.message.answer(
                 "Выберите систему налогообложения:",
@@ -856,15 +948,16 @@ async def callback_handler(callback: MessageCallback):
             )
         elif field == 'work_standard':
             await callback.message.answer(
-                "Введите <b>стандарт работы</b>:\n\n"
-                "Пример:\n✅ Бухучёт (ОСН)\n✅ Расчёт зарплаты\n"
-                "✅ Кадровый учёт\n✅ Квартальная отчётность",
-                parse_mode='html'
+                "Введите <b>стандарт работы</b> или нажмите «Типовой стандарт»:",
+                parse_mode='html',
+                attachments=[kb.skip_or_default_keyboard('cancel', 'use_default_standard')]
             )
         else:
             field_labels = {
                 'name': 'название', 'inn': 'ИНН',
-                'max_group_id': 'ID группы Max', 'notes': 'примечание'
+                'max_group_id': 'ID группы Max',
+                'notes': 'примечание',
+                'description': 'описание бизнеса',
             }
             await callback.message.answer(
                 f"Введите новое <b>{field_labels.get(field, field)}</b>:", parse_mode='html'
@@ -880,7 +973,8 @@ async def callback_handler(callback: MessageCallback):
         if co_id:
             await run_db(db.update_company, co_id, accountant_id=acc_id)
             st.storage.clear(user_id)
-            await callback.message.answer("✅ Бухгалтер обновлён.")
+            label = (await run_db(db.get_accountant, acc_id))['name'] if acc_id else NO_ACCOUNTANT_LABEL
+            await callback.message.answer(f"✅ Бухгалтер обновлён: <b>{label}</b>.", parse_mode='html')
         return
 
     # ── Деактивация компании ──────────────────────────────────────────────────
@@ -901,6 +995,23 @@ async def callback_handler(callback: MessageCallback):
         st.storage.clear(user_id)
         await callback.message.answer(
             f"🗑 <b>{company['name']}</b> деактивирована.", parse_mode='html'
+        )
+        return
+
+    # ── Привязка группы Max к компании ────────────────────────────────────────
+    if payload.startswith('bind_co:'):
+        co_id = int(payload.split(':', 1)[1])
+        data = st.storage.get_data(user_id)
+        chat_id = data.get('bind_chat_id')
+        if not chat_id:
+            await callback.message.answer("Ошибка: chat_id не найден."); return
+        company = await run_db(db.get_company, co_id)
+        await run_db(db.update_company_group, co_id, chat_id)
+        st.storage.clear(user_id)
+        await callback.message.answer(
+            f"🔗 Группа привязана к компании <b>{company['name']}</b>!\n"
+            f"Chat ID: <code>{chat_id}</code>",
+            parse_mode='html'
         )
         return
 
@@ -927,29 +1038,7 @@ async def callback_handler(callback: MessageCallback):
     # ── Карточка компании ─────────────────────────────────────────────────────
     if payload.startswith('info_co:'):
         co_id = int(payload.split(':', 1)[1])
-        company = await run_db(db.get_company, co_id)
-        if not company:
-            await callback.message.answer("Компания не найдена."); return
-        dls = await run_db(db.get_deadlines_for_company, co_id, 'pending')
-        upcoming = sorted(
-            [d for d in dls if days_left(d['due_date']) >= 0], key=lambda x: x['due_date']
-        )[:5]
-        lines = [
-            f"🏢 <b>{company['name']}</b>\n",
-            f"ИНН: {company['inn'] or '—'}",
-            f"Система: {company['tax_system']} | {company['org_type'] or '—'}",
-            f"Сотрудники: {'Да' if company['has_employees'] else 'Нет'} | "
-            f"Воинский учёт: {'Да' if company['has_military'] else 'Нет'}",
-            f"Бухгалтер: {company['accountant_name'] or '—'}",
-            f"Max-группа: {company['max_group_id'] or 'не привязана'}",
-            f"\n📋 <b>Стандарт работы:</b>\n{company['work_standard'] or '— не заполнен —'}",
-        ]
-        if upcoming:
-            lines.append("\n📅 <b>Ближайшие дедлайны:</b>")
-            for dl in upcoming:
-                emoji = deadline_emoji(dl['due_date'], dl['status'])
-                lines.append(f"{emoji} {fmt_date(dl['due_date'])} — {dl['report_name']}")
-        await callback.message.answer('\n'.join(lines), parse_mode='html')
+        await _show_company_card(callback, co_id)
         return
 
 
@@ -958,7 +1047,7 @@ async def callback_handler(callback: MessageCallback):
 async def _ask_accountant(event_or_callback, user_id: str):
     accs = await run_db(db.get_all_accountants)
     await event_or_callback.message.answer(
-        "Шаг 8/9. Назначьте <b>бухгалтера</b>:",
+        "Шаг 10/11. Назначьте <b>бухгалтера</b>:",
         parse_mode='html', attachments=[kb.accountants_keyboard(accs)]
     )
 
@@ -969,21 +1058,33 @@ async def _save_company(event_or_callback, user_id: str):
         db.add_company,
         data.get('name', ''),
         data.get('inn'),
-        data.get('tax_system', 'УСН'),
+        data.get('tax_system', 'УСН 6%'),
         data.get('org_type', 'ООО'),
         data.get('has_employees', False),
         data.get('has_military', False),
         data.get('max_group_id'),
         data.get('accountant_id'),
         data.get('work_standard'),
+        None,
+        data.get('description'),
+        bool(data.get('has_stats_reporting', False)),
     )
     st.storage.clear(user_id)
     d = data
+    acc_label = '—'
+    if d.get('accountant_id'):
+        acc = await run_db(db.get_accountant, d['accountant_id'])
+        acc_label = acc['name'] if acc else '—'
+    else:
+        acc_label = NO_ACCOUNTANT_LABEL
+
     await event_or_callback.message.answer(
         f"✅ <b>Компания добавлена!</b>\n\n"
         f"🏢 {d.get('name')} | {d.get('tax_system')} | {d.get('org_type', 'ООО')}\n"
         f"ИНН: {d.get('inn') or '—'} | Сотрудники: {'Да' if d.get('has_employees') else 'Нет'}\n"
-        f"Стандарт: {'✅ заполнен' if d.get('work_standard') else '— не заполнен'}\n\n"
+        f"Описание: {d.get('description') or '—'}\n"
+        f"Стандарт: {'✅ заполнен' if d.get('work_standard') else '— не заполнен'}\n"
+        f"Бухгалтер: {acc_label}\n\n"
         f"Создать <b>календарь отчётности</b>?",
         parse_mode='html',
         attachments=[kb.gen_deadlines_keyboard(company_id)]
@@ -1057,6 +1158,59 @@ async def _send_accountant_deadlines(event_or_callback, acc):
     )
 
 
+async def _show_company_card(callback_or_event, co_id: int):
+    company = await run_db(db.get_company, co_id)
+    if not company:
+        await callback_or_event.message.answer("Компания не найдена."); return
+
+    dls = await run_db(db.get_deadlines_for_company, co_id, 'pending')
+    upcoming = sorted(
+        [d for d in dls if days_left(d['due_date']) >= 0], key=lambda x: x['due_date']
+    )[:10]
+
+    acc_name = company['accountant_name'] or NO_ACCOUNTANT_LABEL
+    stats_flag = '✅ Да' if company.get('has_stats_reporting') else '❌ Нет'
+
+    lines = [
+        f"🏢 <b>{company['name']}</b>\n",
+        f"ИНН: {company['inn'] or '—'}",
+        f"Система: <b>{company['tax_system']}</b> | {company['org_type'] or '—'}",
+        f"Сотрудники: {'Да' if company['has_employees'] else 'Нет'} | "
+        f"Воинский учёт: {'Да' if company['has_military'] else 'Нет'} | "
+        f"Статотчётность: {stats_flag}",
+        f"Бухгалтер: {acc_name}",
+        f"Max-группа: {company['max_group_id'] or 'не привязана'}",
+    ]
+
+    if company.get('description'):
+        lines.append(f"\n📝 <b>Описание бизнеса:</b>\n{company['description']}")
+
+    # Стандарт базового обслуживания
+    lines.append(f"\n📋 <b>Базовое обслуживание:</b>")
+    if company['work_standard']:
+        lines.append(company['work_standard'])
+    else:
+        lines.append("— не заполнен —")
+
+    # Ближайшие дедлайны по режиму налогообложения
+    if upcoming:
+        lines.append(f"\n📅 <b>Ближайшие сроки отчётности ({company['tax_system']}):</b>")
+        for dl in upcoming:
+            emoji = deadline_emoji(dl['due_date'], dl['status'])
+            d_left = days_left(dl['due_date'])
+            d_str = f"{d_left} дн." if d_left > 0 else "сегодня"
+            status_txt = STATUS_LABELS.get(dl['status'], dl['status'])
+            lines.append(
+                f"{emoji} {fmt_date(dl['due_date'])} — {dl['report_name']}\n"
+                f"    {status_txt} | {d_str}"
+                + (f" | {dl['period']}" if dl.get('period') else "")
+            )
+    else:
+        lines.append("\n✅ Ближайших дедлайнов нет.")
+
+    await callback_or_event.message.answer('\n'.join(lines), parse_mode='html')
+
+
 # ─── Функции меню руководителя ────────────────────────────────────────────────
 
 async def _show_companies(callback: MessageCallback):
@@ -1065,8 +1219,11 @@ async def _show_companies(callback: MessageCallback):
         await callback.message.answer("Компаний нет. Добавьте: /add_company"); return
     lines = ["🏢 <b>Список компаний:</b>\n"]
     for c in companies:
-        acc = c['accountant_name'] or 'не назначен'
-        lines.append(f"• <b>{c['name']}</b> | {c['tax_system']} | {c['org_type'] or '—'} | 👤 {acc}")
+        acc = c['accountant_name'] or NO_ACCOUNTANT_LABEL
+        desc = f" | {c['description'][:40]}" if c.get('description') else ''
+        lines.append(
+            f"• <b>{c['name']}</b> | {c['tax_system']} | {c['org_type'] or '—'} | 👤 {acc}{desc}"
+        )
     lines.append(f"\nВсего: {len(companies)}")
     await callback.message.answer('\n'.join(lines), parse_mode='html')
 
@@ -1094,6 +1251,53 @@ async def _show_upcoming(callback: MessageCallback):
             f"    {dl['report_name']} | {acc} | {days_left(dl['due_date'])} дн."
         )
     await callback.message.answer('\n'.join(lines), parse_mode='html')
+
+
+async def _show_week_deadlines(callback: MessageCallback):
+    await _show_week_deadlines_msg(callback)
+
+
+async def _show_week_deadlines_msg(event_or_callback):
+    deadlines = await run_db(db.get_deadlines_7days)
+    if not deadlines:
+        await event_or_callback.message.answer("✅ На ближайшие 7 дней дедлайнов нет."); return
+
+    overdue = [d for d in deadlines if days_left(d['due_date']) < 0]
+    upcoming = [d for d in deadlines if days_left(d['due_date']) >= 0]
+
+    lines = ["⚡ <b>Свод отчётности: ближайшие 7 дней</b>\n"]
+
+    if overdue:
+        lines.append(f"🔴 <b>Просрочено ({len(overdue)}):</b>")
+        for dl in overdue[:15]:
+            acc = dl['accountant_name'] or '—'
+            lines.append(
+                f"🔴 {fmt_date(dl['due_date'])} | <b>{dl['company_name']}</b>\n"
+                f"    {dl['report_name']} | {acc} | просрочено {abs(days_left(dl['due_date']))} дн."
+            )
+
+    if upcoming:
+        lines.append(f"\n🟡 <b>Предстоят ({len(upcoming)}):</b>")
+        for dl in upcoming[:20]:
+            emoji = deadline_emoji(dl['due_date'], dl['status'])
+            acc = dl['accountant_name'] or '—'
+            d_left = days_left(dl['due_date'])
+            d_str = 'сегодня!' if d_left == 0 else f'{d_left} дн.'
+            lines.append(
+                f"{emoji} {fmt_date(dl['due_date'])} | <b>{dl['company_name']}</b>\n"
+                f"    {dl['report_name']} | {acc} | {d_str}"
+            )
+
+    lines.append(f"\n📌 Всего: {len(deadlines)} | Просрочено: {len(overdue)} | Предстоит: {len(upcoming)}")
+
+    flat_dls = upcoming[:10]
+    if flat_dls:
+        await event_or_callback.message.answer(
+            '\n'.join(lines), parse_mode='html',
+            attachments=[kb.deadlines_keyboard(flat_dls)]
+        )
+    else:
+        await event_or_callback.message.answer('\n'.join(lines), parse_mode='html')
 
 
 async def _show_overdue(callback: MessageCallback):
@@ -1141,10 +1345,6 @@ async def _show_monthly_report(callback: MessageCallback):
 
 
 async def _send_excel_report(callback: MessageCallback):
-    """
-    Генерирует Excel, сохраняет на диск, сообщает путь к файлу.
-    Max Bot API не поддерживает отправку файлов — выводим путь и текстовый отчёт.
-    """
     await callback.message.answer("⏳ Формирую Excel-отчёт...")
     try:
         filepath = await asyncio.to_thread(excel_report.generate_monthly_report)
@@ -1161,7 +1361,6 @@ async def _send_excel_report(callback: MessageCallback):
 
 
 async def _show_kpi(callback: MessageCallback):
-    """KPI с реальными ошибками (get_accountant_stats_full)."""
     now = datetime.now()
     stats = await run_db(db.get_accountant_stats_full, now.year, now.month)
     if not stats:
@@ -1172,11 +1371,12 @@ async def _show_kpi(callback: MessageCallback):
         done = s['done_deadlines'] or 0
         overdue = s['overdue_deadlines'] or 0
         errors = s['error_count'] or 0
+        company_count = s['company_count'] or 0
         pct = round(done / total * 100) if total > 0 else 0
         err_pct = round(errors / total * 100, 1) if total > 0 else 0
         lines.append(
             f"👤 <b>{s['name']}</b>\n"
-            f"  🏢 Компаний: {s['company_count'] or 0}\n"
+            f"  🏢 Компаний: {company_count}\n"
             f"  📄 Дедлайнов: {total} | ✅ {done} | 🔴 {overdue}\n"
             f"  📊 Исполнение: {pct}% | ⚠️ Ошибок: {errors} ({err_pct}%)\n"
             f"  ➕ Доп.работы: {s['extra_hours'] or 0}ч / {(s['extra_amount'] or 0):,.0f}₽"
@@ -1197,6 +1397,55 @@ async def _show_errors_log(callback: MessageCallback):
             f"  🏢 {co}\n  📝 {e['description']}"
         )
     await callback.message.answer('\n'.join(lines), parse_mode='html')
+
+
+async def _show_analytics(callback: MessageCallback):
+    await _show_analytics_msg(callback)
+
+
+async def _show_analytics_msg(event_or_callback):
+    data = await run_db(db.get_analytics_summary)
+    total = data['total']
+    if not total:
+        await event_or_callback.message.answer("Компаний нет. Добавьте через /add_company"); return
+
+    lines = [f"📊 <b>Аналитика по компаниям</b>\n\nВсего активных: <b>{total}</b>\n"]
+
+    # По системам налогообложения
+    lines.append("📌 <b>По системе налогообложения:</b>")
+    for row in data['by_tax']:
+        pct = round(row['cnt'] / total * 100)
+        lines.append(f"  • {row['tax_system']}: <b>{row['cnt']}</b> ({pct}%)")
+
+    # По типам организаций
+    lines.append("\n🏛 <b>По типу организации:</b>")
+    for row in data['by_org']:
+        pct = round(row['cnt'] / total * 100)
+        lines.append(f"  • {row['org_type'] or '?'}: <b>{row['cnt']}</b> ({pct}%)")
+
+    # Дополнительные показатели
+    lines.append(f"\n👥 С сотрудниками: <b>{data['with_employees']}</b>")
+    lines.append(f"🪖 С воинским учётом: <b>{data['with_military']}</b>")
+    lines.append(f"🚫 Без бухгалтера: <b>{data['no_accountant']}</b>")
+
+    # Сводка по видам деятельности (из описания)
+    companies_desc = data['companies_with_desc']
+    with_desc = [c for c in companies_desc if c['description']]
+    if with_desc:
+        lines.append(f"\n📝 <b>Виды деятельности ({len(with_desc)} компаний):</b>")
+        current_tax = None
+        for c in with_desc[:25]:
+            if c['tax_system'] != current_tax:
+                current_tax = c['tax_system']
+                lines.append(f"\n  [{current_tax}]")
+            lines.append(f"  • <b>{c['name']}</b>: {c['description'][:60]}")
+        if len(with_desc) > 25:
+            lines.append(f"  ... и ещё {len(with_desc) - 25} компаний")
+    else:
+        lines.append("\n📝 Описание бизнеса не заполнено ни у одной компании.")
+        lines.append("Добавьте через /edit_company → Описание бизнеса")
+
+    await event_or_callback.message.answer('\n'.join(lines), parse_mode='html')
 
 
 async def _handle_acc_menu(callback: MessageCallback, payload: str, user_id: str):
@@ -1239,7 +1488,6 @@ async def _handle_acc_menu(callback: MessageCallback, payload: str, user_id: str
         )
 
     elif action == 'add_work':
-        # Исправлен: отдельные вызовы вместо тернарного run_db
         if acc:
             companies = await run_db(db.get_companies_by_accountant, acc['id'])
         else:
