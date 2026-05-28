@@ -74,6 +74,7 @@ async def dashboard(
     request: Request, _=Depends(require_auth),
     q: Optional[str] = None,
     acc: Optional[str] = None,
+    op: Optional[str] = None,
     tax: Optional[str] = None,
     emp: Optional[str] = None,
     mil: Optional[str] = None,
@@ -94,6 +95,8 @@ async def dashboard(
         companies = [c for c in companies if ql in c['name'].lower()]
     if acc:
         companies = [c for c in companies if str(c.get('accountant_id') or '') == acc]
+    if op:
+        companies = [c for c in companies if str(c.get('operator_id') or '') == op]
     if tax:
         companies = [c for c in companies if c.get('tax_system') == tax]
     if emp in ('0', '1'):
@@ -134,7 +137,7 @@ async def dashboard(
             'accountants': [dict(a) for a in accountants_raw],
             'today':       today.strftime('%d.%m.%Y'),
             'month_label': f"{MONTHS_RU[today.month]} {today.year}",
-            'co_filters':  {'q': q or '', 'acc': acc or '', 'tax': tax or '', 'emp': emp or '', 'mil': mil or ''},
+            'co_filters':  {'q': q or '', 'acc': acc or '', 'op': op or '', 'tax': tax or '', 'emp': emp or '', 'mil': mil or ''},
             'stats': {
                 'companies':  len(companies),
                 'upcoming':   len(upcoming),

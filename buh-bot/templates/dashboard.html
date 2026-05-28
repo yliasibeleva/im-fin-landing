@@ -90,39 +90,53 @@
       <span><i class="bi bi-building me-2"></i>Все компании ({{ companies|length }})</span>
       <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addCoModal"><i class="bi bi-plus-lg me-1"></i>Добавить</button>
     </div>
-    <form method="get" class="row g-2 align-items-end" id="coFilter">
+    <form method="get" class="row g-2" id="coFilter">
       <div class="col-sm-3">
-        <input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск по названию..." value="{{ co_filters.q }}">
+        <label class="form-label mb-1 small fw-semibold">Поиск</label>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Название компании..." value="{{ co_filters.q }}">
       </div>
       <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
         <select name="acc" class="form-select form-select-sm">
-          <option value="">Все бухгалтеры</option>
+          <option value="">Все</option>
           {% for a in accountants %}<option value="{{ a.id }}" {% if co_filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
         </select>
       </div>
       <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Операционист</label>
+        <select name="op" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for a in accountants %}<option value="{{ a.id }}" {% if co_filters.op == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">СНО</label>
         <select name="tax" class="form-select form-select-sm">
-          <option value="">Все СНО</option>
+          <option value="">Все</option>
           {% for t in ['УСН 6%','УСН 15%','ОСН','ЕСХН','ПСН','АУСН'] %}<option value="{{ t }}" {% if co_filters.tax == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
         </select>
       </div>
-      <div class="col-sm-2">
+      <div class="col-sm-1">
+        <label class="form-label mb-1 small fw-semibold">Сотрудники</label>
         <select name="emp" class="form-select form-select-sm">
-          <option value="">Сотрудники: все</option>
-          <option value="1" {% if co_filters.emp == '1' %}selected{% endif %}>Есть сотрудники</option>
-          <option value="0" {% if co_filters.emp == '0' %}selected{% endif %}>Без сотрудников</option>
+          <option value="">Все</option>
+          <option value="1" {% if co_filters.emp == '1' %}selected{% endif %}>Есть</option>
+          <option value="0" {% if co_filters.emp == '0' %}selected{% endif %}>Нет</option>
         </select>
       </div>
-      <div class="col-sm-2">
+      <div class="col-sm-1">
+        <label class="form-label mb-1 small fw-semibold">Воинский</label>
         <select name="mil" class="form-select form-select-sm">
-          <option value="">Воинский: все</option>
-          <option value="1" {% if co_filters.mil == '1' %}selected{% endif %}>Воинский учёт</option>
-          <option value="0" {% if co_filters.mil == '0' %}selected{% endif %}>Без воинского</option>
+          <option value="">Все</option>
+          <option value="1" {% if co_filters.mil == '1' %}selected{% endif %}>Да</option>
+          <option value="0" {% if co_filters.mil == '0' %}selected{% endif %}>Нет</option>
         </select>
       </div>
-      <div class="col-sm-1 d-flex gap-1">
-        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i></button>
-        <a href="/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
+      <div class="col-sm-1 d-flex gap-1 align-items-end">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill me-1"></i>Найти</button>
+      </div>
+      <div class="col-sm-1 d-flex align-items-end">
+        <a href="/" class="btn btn-sm btn-outline-secondary w-100">Сброс</a>
       </div>
     </form>
   </div>
