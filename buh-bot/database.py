@@ -521,7 +521,7 @@ def update_company(company_id: int, **fields) -> None:
         'name', 'inn', 'tax_system', 'org_type', 'has_employees',
         'has_military', 'has_stats_reporting', 'max_group_id', 'accountant_id',
         'work_standard', 'notes', 'is_active', 'payroll_accountant_id',
-        'operator_id', 'description'
+        'operator_id', 'hr_accountant_id', 'description'
     }
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates:
