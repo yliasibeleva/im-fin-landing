@@ -5,6 +5,7 @@
 Логин: admin / пароль из .env (WEB_PASSWORD)
 """
 import asyncio
+import io
 import os
 import secrets
 from datetime import date
@@ -12,7 +13,7 @@ from datetime import date
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, status
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 from typing import Annotated, Optional
@@ -350,6 +351,265 @@ async def accountant_delete(accountant_id: int, _=Depends(require_auth)):
             conn.execute('DELETE FROM accountants WHERE id=?', (accountant_id,))
     await asyncio.to_thread(_delete)
     return RedirectResponse('/accountants', status_code=303)
+
+
+# ─── Дедлайны ─────────────────────────────────────────────────────────────────
+
+@app.get('/deadlines', response_class=HTMLResponse)
+async def deadlines_page(
+    request: Request, _=Depends(require_auth),
+    acc: Optional[str] = None, status_f: Optional[str] = None,
+    period: Optional[str] = None, q: Optional[str] = None,
+):
+    today = date.today()
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
+
+    # Получаем все дедлайны
+    all_dl = await asyncio.to_thread(db.get_upcoming_deadlines, 365)
+    overdue_dl = await asyncio.to_thread(db.get_overdue_deadlines)
+
+    deadlines = []
+    for dl in all_dl:
+        d = dict(dl)
+        d['due_fmt']   = fmt_date(d['due_date'])
+        d['days_left'] = days_left(d['due_date'])
+        deadlines.append(d)
+    for dl in overdue_dl:
+        d = dict(dl)
+        d['due_fmt']   = fmt_date(d['due_date'])
+        d['days_left'] = days_left(d['due_date'])
+        if not any(x['id'] == d['id'] for x in deadlines):
+            deadlines.append(d)
+
+    # Применяем фильтры
+    if acc:
+        deadlines = [d for d in deadlines if str(d.get('accountant_id') or '') == acc]
+    if status_f:
+        if status_f == 'overdue':
+            deadlines = [d for d in deadlines if d.get('status') == 'pending' and d['days_left'] < 0]
+        else:
+            deadlines = [d for d in deadlines if d.get('status') == status_f]
+    if period:
+        deadlines = [d for d in deadlines if d['due_date'][:7] == period]
+    if q:
+        ql = q.lower()
+        deadlines = [d for d in deadlines if ql in (d.get('company_name') or '').lower()]
+
+    deadlines.sort(key=lambda d: d['due_date'])
+
+    return templates.TemplateResponse(request=request, name='deadlines.html', context={
+        'deadlines':   deadlines,
+        'accountants': [dict(a) for a in accountants_raw],
+        'today':       today.strftime('%d.%m.%Y'),
+        'filters':     {'acc': acc or '', 'status': status_f or '', 'period': period or today.strftime('%Y-%m'), 'q': q or ''},
+    })
+
+
+@app.post('/deadlines/{deadline_id}/done')
+async def deadline_done_global(deadline_id: int, _=Depends(require_auth)):
+    await asyncio.to_thread(db.mark_deadline_done, deadline_id)
+    return RedirectResponse('/deadlines', status_code=303)
+
+
+# ─── Задачи ───────────────────────────────────────────────────────────────────
+
+@app.get('/tasks', response_class=HTMLResponse)
+async def tasks_page(
+    request: Request, _=Depends(require_auth),
+    acc: Optional[str] = None, status_f: Optional[str] = None,
+):
+    today = date.today()
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
+    companies_raw   = await asyncio.to_thread(db.get_all_companies)
+
+    all_tasks_raw = await asyncio.to_thread(db.get_all_tasks)
+    tasks = [dict(t) for t in all_tasks_raw]
+
+    if acc:
+        tasks = [t for t in tasks if str(t.get('accountant_id') or '') == acc]
+
+    pending = [t for t in tasks if t.get('status') == 'pending']
+    done    = [t for t in tasks if t.get('status') == 'done']
+
+    return templates.TemplateResponse(request=request, name='tasks.html', context={
+        'tasks':       tasks,
+        'pending':     pending,
+        'done':        done,
+        'all_count':   len(tasks),
+        'accountants': [dict(a) for a in accountants_raw],
+        'companies':   [dict(c) for c in companies_raw],
+        'today':       today.strftime('%d.%m.%Y'),
+        'filters':     {'acc': acc or '', 'status': status_f or ''},
+    })
+
+
+@app.post('/tasks/add')
+async def task_add(
+    _=Depends(require_auth),
+    title: str = Form(...),
+    accountant_id: Optional[str] = Form(None),
+    company_id: Optional[str] = Form(None),
+    due_date: Optional[str] = Form(None),
+    priority: str = Form('normal'),
+    description: Optional[str] = Form(None),
+):
+    await asyncio.to_thread(
+        db.add_task, title,
+        int(company_id) if company_id else None,
+        int(accountant_id) if accountant_id else None,
+        description or None, due_date or None, priority,
+    )
+    return RedirectResponse('/tasks', status_code=303)
+
+
+@app.post('/tasks/{task_id}/done')
+async def task_done(task_id: int, _=Depends(require_auth)):
+    await asyncio.to_thread(db.mark_task_done, task_id)
+    return RedirectResponse('/tasks', status_code=303)
+
+
+# ─── Журнал ошибок ────────────────────────────────────────────────────────────
+
+@app.get('/errors', response_class=HTMLResponse)
+async def errors_page(
+    request: Request, _=Depends(require_auth),
+    period: Optional[str] = None, acc: Optional[str] = None,
+):
+    today = date.today()
+    if not period:
+        period = today.strftime('%Y-%m')
+    year, month = int(period[:4]), int(period[5:7])
+
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
+    companies_raw   = await asyncio.to_thread(db.get_all_companies)
+    errors_raw      = await asyncio.to_thread(db.get_errors_for_month, year, month)
+
+    errors = [dict(e) for e in errors_raw]
+    if acc:
+        errors = [e for e in errors if str(e.get('accountant_id') or '') == acc]
+
+    by_accountant = {}
+    for e in errors:
+        n = e['accountant_name']
+        by_accountant[n] = by_accountant.get(n, 0) + 1
+
+    return templates.TemplateResponse(request=request, name='errors.html', context={
+        'errors':        errors,
+        'by_accountant': by_accountant,
+        'accountants':   [dict(a) for a in accountants_raw],
+        'companies':     [dict(c) for c in companies_raw],
+        'today':         today.strftime('%d.%m.%Y'),
+        'today_iso':     today.isoformat(),
+        'filters':       {'period': period, 'acc': acc or ''},
+    })
+
+
+@app.post('/errors/add')
+async def error_add(
+    _=Depends(require_auth),
+    accountant_id: int = Form(...),
+    company_id: Optional[str] = Form(None),
+    error_date: str = Form(...),
+    description: str = Form(...),
+):
+    await asyncio.to_thread(
+        db.add_error, accountant_id, description, error_date,
+        int(company_id) if company_id else None,
+    )
+    return RedirectResponse('/errors', status_code=303)
+
+
+# ─── Экспорт Excel ────────────────────────────────────────────────────────────
+
+@app.get('/export/excel')
+async def export_excel(_=Depends(require_auth)):
+    import traceback
+    try:
+        return await _do_export_excel()
+    except Exception as exc:
+        return HTMLResponse(f'<pre>{traceback.format_exc()}</pre>', status_code=500)
+
+
+async def _do_export_excel():
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    today = date.today()
+    companies_raw  = await asyncio.to_thread(db.get_all_companies)
+    kpi_raw        = await asyncio.to_thread(db.get_accountant_stats_full, today.year, today.month)
+
+    wb = openpyxl.Workbook()
+
+    # ── Лист 1: Компании ──
+    ws1 = wb.active
+    ws1.title = 'Компании'
+    hdr_font  = Font(bold=True, color='FFFFFF', size=10)
+    hdr_fill  = PatternFill('solid', fgColor='1A3A5C')
+    hdr_align = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    headers = ['ID', 'Название', 'СНО', 'Тип', 'Бухгалтер', 'Сотрудники', 'Воинский учёт']
+    for ci, h in enumerate(headers, 1):
+        c = ws1.cell(row=1, column=ci, value=h)
+        c.font = hdr_font; c.fill = hdr_fill; c.alignment = hdr_align
+    ws1.row_dimensions[1].height = 22
+    col_widths = [6, 36, 10, 8, 24, 12, 14]
+    for ci, w in enumerate(col_widths, 1):
+        ws1.column_dimensions[get_column_letter(ci)].width = w
+
+    fill_a = PatternFill('solid', fgColor='EFF4FB')
+    fill_b = PatternFill('solid', fgColor='DDEAF8')
+    companies_list = list(companies_raw)
+    for ri, c in enumerate(companies_list, 2):
+        cd = dict(c)
+        row_fill = fill_a if ri % 2 == 0 else fill_b
+        vals = [cd['id'], cd['name'], cd['tax_system'], cd['org_type'],
+                cd.get('accountant_name') or '',
+                'Да' if cd.get('has_employees') else 'Нет',
+                'Да' if cd.get('has_military') else 'Нет']
+        for ci2, val in enumerate(vals, 1):
+            cell = ws1.cell(row=ri, column=ci2, value=val)
+            cell.fill = row_fill
+            cell.alignment = Alignment(vertical='center')
+    ws1.auto_filter.ref = f'A1:G{len(companies_list)+1}'
+
+    # ── Лист 2: KPI ──
+    ws2 = wb.create_sheet('KPI бухгалтеров')
+    kpi_headers = ['Бухгалтер', 'Компаний', 'Дедлайнов', 'Выполнено', 'Просрочено', '% исп.', 'Ошибок', 'Доп.часы', 'Доп.сумма']
+    for ci, h in enumerate(kpi_headers, 1):
+        c = ws2.cell(row=1, column=ci, value=h)
+        c.font = hdr_font; c.fill = hdr_fill; c.alignment = hdr_align
+    ws2.row_dimensions[1].height = 22
+    kpi_widths = [26, 10, 12, 12, 12, 10, 10, 12, 14]
+    for ci, w in enumerate(kpi_widths, 1):
+        ws2.column_dimensions[get_column_letter(ci)].width = w
+
+    for ri, s in enumerate(kpi_raw, 2):
+        sd = dict(s)
+        total = sd.get('total_deadlines') or 0
+        done  = sd.get('done_deadlines') or 0
+        pct   = round(done / total * 100) if total > 0 else 0
+        row_fill = fill_a if ri % 2 == 0 else fill_b
+        vals = [sd['name'], sd.get('company_count') or 0, total, done,
+                sd.get('overdue_deadlines') or 0, f'{pct}%',
+                sd.get('error_count') or 0,
+                sd.get('extra_hours') or 0,
+                sd.get('extra_amount') or 0]
+        for ci2, val in enumerate(vals, 1):
+            cell = ws2.cell(row=ri, column=ci2, value=val)
+            cell.fill = row_fill
+            cell.alignment = Alignment(vertical='center')
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    filename_ascii = f'IF_export_{today.strftime("%Y-%m-%d")}.xlsx'
+    return StreamingResponse(
+        buf,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename="{filename_ascii}"'},
+    )
 
 
 if __name__ == '__main__':

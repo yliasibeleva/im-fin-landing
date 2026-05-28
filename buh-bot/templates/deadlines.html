@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Дедлайны — Империя Финанс{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-calendar-check me-2 text-primary"></i>Дедлайны</h4>
+</div>
+
+{# Фильтры #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
+        <select name="acc" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for a in accountants %}<option value="{{ a.id }}" {% if filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Статус</label>
+        <select name="status" class="form-select form-select-sm">
+          <option value="">Все</option>
+          <option value="pending" {% if filters.status=='pending' %}selected{% endif %}>В работе</option>
+          <option value="done"    {% if filters.status=='done'    %}selected{% endif %}>Выполнено</option>
+          <option value="overdue" {% if filters.status=='overdue' %}selected{% endif %}>Просрочено</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Период</label>
+        <input type="month" name="period" class="form-control form-control-sm" value="{{ filters.period }}">
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Поиск по компании</label>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Название..." value="{{ filters.q }}">
+      </div>
+      <div class="col-sm-2 d-flex gap-2">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Применить</button>
+        <a href="/deadlines" class="btn btn-sm btn-outline-secondary">Сброс</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Счётчики #}
+<div class="row g-2 mb-3">
+  <div class="col-auto"><span class="badge bg-secondary fs-6">Всего: {{ deadlines|length }}</span></div>
+  <div class="col-auto"><span class="badge bg-warning text-dark fs-6">В работе: {{ deadlines|selectattr('status','equalto','pending')|list|length }}</span></div>
+  <div class="col-auto"><span class="badge bg-danger fs-6">Просрочено: {{ deadlines|selectattr('status','equalto','overdue')|list|length }}</span></div>
+  <div class="col-auto"><span class="badge bg-success fs-6">Выполнено: {{ deadlines|selectattr('status','equalto','done')|list|length }}</span></div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if deadlines %}
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr>
+        <th>Срок</th><th>Компания</th><th>Отчёт</th><th>Тип</th><th>Бухгалтер</th><th>Статус</th><th></th>
+      </tr></thead>
+      <tbody>
+      {% for dl in deadlines %}
+      <tr class="{% if dl.status=='overdue' %}dl-overdue{% elif dl.days_left is defined and dl.days_left <= 3 and dl.status=='pending' %}dl-soon{% endif %}">
+        <td class="text-nowrap fw-semibold {% if dl.status=='overdue' %}text-danger{% endif %}">{{ dl.due_fmt }}</td>
+        <td><a href="/company/{{ dl.company_id }}" class="text-decoration-none fw-semibold">{{ dl.company_name }}</a></td>
+        <td>{{ dl.report_name }}</td>
+        <td><span class="badge bg-light text-dark border">{{ dl.report_type }}</span></td>
+        <td class="text-muted">{{ dl.accountant_name or '—' }}</td>
+        <td>
+          {% if dl.status == 'done' %}<span class="badge bg-success">✓ Выполнено</span>
+          {% elif dl.status == 'overdue' %}<span class="badge bg-danger">Просрочено</span>
+          {% else %}<span class="badge bg-warning text-dark">В работе</span>{% endif %}
+        </td>
+        <td>
+          {% if dl.status != 'done' %}
+          <form method="post" action="/deadlines/{{ dl.id }}/done" style="display:inline">
+            <button class="btn btn-xs btn-success" title="Отметить выполненным"><i class="bi bi-check-lg"></i></button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-5 text-center text-muted"><i class="bi bi-calendar-x fs-2"></i><div class="mt-2">Дедлайнов не найдено</div></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

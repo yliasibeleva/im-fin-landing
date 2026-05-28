@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Журнал ошибок — Империя Финанс{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-bug me-2 text-danger"></i>Журнал ошибок</h4>
+  <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#addErrorModal"><i class="bi bi-plus-lg me-1"></i>Записать ошибку</button>
+</div>
+
+{# Фильтры #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Период</label>
+        <input type="month" name="period" class="form-control form-control-sm" value="{{ filters.period }}">
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
+        <select name="acc" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for a in accountants %}<option value="{{ a.id }}" {% if filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2 d-flex gap-2 align-items-end">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Применить</button>
+        <a href="/errors" class="btn btn-sm btn-outline-secondary">Сброс</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Сводка по бухгалтерам #}
+{% if by_accountant %}
+<div class="row g-2 mb-3">
+  {% for name, cnt in by_accountant.items() %}
+  <div class="col-auto">
+    <span class="badge bg-danger fs-6">{{ name }}: {{ cnt }}</span>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-body p-0">
+    {% if errors %}
+    <table class="table table-hover mb-0 align-middle">
+      <thead><tr><th>Дата</th><th>Бухгалтер</th><th>Компания</th><th>Описание ошибки</th></tr></thead>
+      <tbody>
+      {% for e in errors %}
+      <tr>
+        <td class="text-nowrap text-muted">{{ e.error_date }}</td>
+        <td class="fw-semibold text-danger">{{ e.accountant_name }}</td>
+        <td class="text-muted">{{ e.company_name or '—' }}</td>
+        <td>{{ e.description }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-5 text-center text-muted"><i class="bi bi-shield-check fs-2 text-success"></i><div class="mt-2">Ошибок за период не найдено</div></div>
+    {% endif %}
+  </div>
+</div>
+
+{# Модальное добавление ошибки #}
+<div class="modal fade" id="addErrorModal" tabindex="-1">
+  <div class="modal-dialog"><form method="post" action="/errors/add" class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Записать ошибку</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+    <div class="modal-body">
+      <div class="mb-2">
+        <label class="form-label fw-semibold">Бухгалтер *</label>
+        <select name="accountant_id" class="form-select" required>
+          <option value="">— выберите —</option>
+          {% for a in accountants %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Компания</label>
+        <select name="company_id" class="form-select">
+          <option value="">— не указана —</option>
+          {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="mb-2"><label class="form-label">Дата ошибки</label><input type="date" name="error_date" class="form-control" value="{{ today_iso }}" required></div>
+      <div class="mb-2"><label class="form-label fw-semibold">Описание *</label><textarea name="description" class="form-control" rows="3" required></textarea></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button><button type="submit" class="btn btn-danger">Записать</button></div>
+  </form></div>
+</div>
+{% endblock %}
