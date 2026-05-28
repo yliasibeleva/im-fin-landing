@@ -22,19 +22,22 @@
         </select>
       </div>
       <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Компания</label>
+        <select name="company" class="form-select form-select-sm">
+          <option value="">Все компании</option>
+          {% for c in companies %}<option value="{{ c.id }}" {% if filters.company == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Тип работы</label>
         <select name="wtype" class="form-select form-select-sm">
           <option value="">Все типы</option>
           {% for t in work_types %}<option value="{{ t }}" {% if filters.wtype == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
         </select>
       </div>
-      <div class="col-sm-3">
-        <label class="form-label mb-1 small fw-semibold">Компания</label>
-        <input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск..." value="{{ filters.q }}">
-      </div>
-      <div class="col-sm-2 d-flex gap-2 align-items-end">
-        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill me-1"></i>Найти</button>
-        <a href="/works" class="btn btn-sm btn-outline-secondary">Сброс</a>
+      <div class="col-sm-1 d-flex gap-1 align-items-end">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
+        <a href="/works" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
       </div>
     </form>
   </div>

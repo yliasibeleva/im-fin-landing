@@ -503,6 +503,7 @@ async def works_page(
     acc: Optional[str] = None,
     wtype: Optional[str] = None,
     q: Optional[str] = None,
+    company: Optional[str] = None,
 ):
     from calendar_data import WORK_TYPES
     today = date.today()
@@ -518,6 +519,8 @@ async def works_page(
 
     if acc:
         works = [w for w in works if str(w.get('accountant_id') or '') == acc]
+    if company:
+        works = [w for w in works if str(w.get('company_id') or '') == company]
     if wtype:
         works = [w for w in works if w.get('work_type') == wtype]
     if q:
@@ -554,7 +557,7 @@ async def works_page(
         'today':           today.strftime('%d.%m.%Y'),
         'today_iso':       today.isoformat(),
         'month_label':     f"{MONTHS_RU[month]} {year}",
-        'filters':         {'period': period, 'acc': acc or '', 'wtype': wtype or '', 'q': q or ''},
+        'filters':         {'period': period, 'acc': acc or '', 'wtype': wtype or '', 'q': q or '', 'company': company or ''},
     })
 
 
