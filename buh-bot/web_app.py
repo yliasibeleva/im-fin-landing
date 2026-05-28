@@ -442,7 +442,10 @@ async def deadline_done_global(deadline_id: int, _=Depends(require_auth)):
 @app.get('/tasks', response_class=HTMLResponse)
 async def tasks_page(
     request: Request, _=Depends(require_auth),
-    acc: Optional[str] = None, status_f: Optional[str] = None,
+    acc: Optional[str] = None,
+    status_f: Optional[str] = None,
+    company: Optional[str] = None,
+    priority: Optional[str] = None,
 ):
     today = date.today()
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
@@ -453,19 +456,28 @@ async def tasks_page(
 
     if acc:
         tasks = [t for t in tasks if str(t.get('accountant_id') or '') == acc]
+    if company:
+        tasks = [t for t in tasks if str(t.get('company_id') or '') == company]
+    if priority:
+        tasks = [t for t in tasks if t.get('priority') == priority]
 
     pending = [t for t in tasks if t.get('status') == 'pending']
     done    = [t for t in tasks if t.get('status') == 'done']
+    overdue_count = sum(
+        1 for t in pending
+        if t.get('due_date') and t['due_date'] < today.isoformat()
+    )
 
     return templates.TemplateResponse(request=request, name='tasks.html', context={
-        'tasks':       tasks,
-        'pending':     pending,
-        'done':        done,
-        'all_count':   len(tasks),
-        'accountants': [dict(a) for a in accountants_raw],
-        'companies':   [dict(c) for c in companies_raw],
-        'today':       today.strftime('%d.%m.%Y'),
-        'filters':     {'acc': acc or '', 'status': status_f or ''},
+        'tasks':         tasks,
+        'pending':       pending,
+        'done':          done,
+        'overdue_count': overdue_count,
+        'accountants':   [dict(a) for a in accountants_raw],
+        'companies':     [dict(c) for c in companies_raw],
+        'today':         today.strftime('%d.%m.%Y'),
+        'today_iso':     today.isoformat(),
+        'filters':       {'acc': acc or '', 'status': status_f or '', 'company': company or '', 'priority': priority or ''},
     })
 
 

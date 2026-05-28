@@ -10,11 +10,27 @@
 <div class="card mb-3">
   <div class="card-body py-2">
     <form method="get" class="row g-2 align-items-end">
-      <div class="col-sm-3">
+      <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
         <select name="acc" class="form-select form-select-sm">
           <option value="">Все</option>
           {% for a in accountants %}<option value="{{ a.id }}" {% if filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Компания</label>
+        <select name="company" class="form-select form-select-sm">
+          <option value="">Все компании</option>
+          {% for c in companies %}<option value="{{ c.id }}" {% if filters.company == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Приоритет</label>
+        <select name="priority" class="form-select form-select-sm">
+          <option value="">Все</option>
+          <option value="high"   {% if filters.priority=='high'   %}selected{% endif %}>🔴 Высокий</option>
+          <option value="normal" {% if filters.priority=='normal' %}selected{% endif %}>🟡 Обычный</option>
+          <option value="low"    {% if filters.priority=='low'    %}selected{% endif %}>🟢 Низкий</option>
         </select>
       </div>
       <div class="col-sm-2">
@@ -25,26 +41,59 @@
           <option value="done"    {% if filters.status=='done'    %}selected{% endif %}>Выполнено</option>
         </select>
       </div>
-      <div class="col-sm-2 d-flex gap-2 align-items-end">
-        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel me-1"></i>Применить</button>
-        <a href="/tasks" class="btn btn-sm btn-outline-secondary">Сброс</a>
+      <div class="col-sm-1 d-flex gap-1 align-items-end">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
+        <a href="/tasks" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
       </div>
     </form>
   </div>
 </div>
 
-{# Канбан-табы #}
+{# Карточки-итоги #}
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card blue p-3">
+      <div class="text-muted section-title">Всего</div>
+      <div class="fs-2 fw-bold text-primary">{{ tasks|length }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card orange p-3">
+      <div class="text-muted section-title">В работе</div>
+      <div class="fs-2 fw-bold text-warning">{{ pending|length }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card red p-3">
+      <div class="text-muted section-title">Просрочено</div>
+      <div class="fs-2 fw-bold text-danger">{{ overdue_count }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card green p-3">
+      <div class="text-muted section-title">Выполнено</div>
+      <div class="fs-2 fw-bold text-success">{{ done|length }}</div>
+    </div>
+  </div>
+</div>
+
+{# Табы #}
 <ul class="nav nav-tabs mb-3">
-  <li class="nav-item"><a class="nav-link {% if not filters.status or filters.status=='pending' %}active{% endif %}" href="/tasks?status=pending{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+  <li class="nav-item"><a class="nav-link {% if not filters.status or filters.status=='pending' %}active{% endif %}"
+    href="/tasks?status=pending{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
     <i class="bi bi-hourglass-split me-1"></i>В работе <span class="badge bg-warning text-dark">{{ pending|length }}</span></a></li>
-  <li class="nav-item"><a class="nav-link {% if filters.status=='done' %}active{% endif %}" href="/tasks?status=done{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+  <li class="nav-item"><a class="nav-link {% if filters.status=='done' %}active{% endif %}"
+    href="/tasks?status=done{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
     <i class="bi bi-check2-circle me-1"></i>Выполнено <span class="badge bg-success">{{ done|length }}</span></a></li>
-  <li class="nav-item"><a class="nav-link {% if filters.status=='' %}active{% endif %}" href="/tasks{% if filters.acc %}?acc={{ filters.acc }}{% endif %}">
-    <i class="bi bi-list me-1"></i>Все <span class="badge bg-secondary">{{ all_count }}</span></a></li>
+  <li class="nav-item"><a class="nav-link {% if filters.status=='' and not filters.acc and not filters.company %}active{% endif %}"
+    href="/tasks">
+    <i class="bi bi-list me-1"></i>Все <span class="badge bg-secondary">{{ tasks|length }}</span></a></li>
 </ul>
 
 {% set show_tasks = pending if (not filters.status or filters.status == 'pending') else (done if filters.status == 'done' else tasks) %}
+
 <div class="card">
+  <div class="card-header bg-light fw-semibold"><i class="bi bi-table me-2"></i>Детализация ({{ show_tasks|length }})</div>
   <div class="card-body p-0">
     {% if show_tasks %}
     <table class="table table-hover mb-0 align-middle">
@@ -52,17 +101,22 @@
       <tbody>
       {% for t in show_tasks %}
       <tr>
-        <td class="fw-semibold">{{ t.title }}</td>
-        <td><a href="/company/{{ t.company_id }}" class="text-decoration-none text-muted">{{ t.company_name or '—' }}</a></td>
-        <td class="text-muted">{{ t.accountant_name or '—' }}</td>
+        <td class="fw-semibold">{{ t.title }}{% if t.description %}<div class="text-muted small">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}</td>
+        <td><a href="/company/{{ t.company_id }}" class="text-decoration-none fw-semibold">{{ t.company_name or '—' }}</a></td>
+        <td class="text-muted small">{{ t.accountant_name or '—' }}</td>
         <td>
-          {% if t.priority == 'high' %}<span class="badge bg-danger">Высокий</span>
-          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
-          {% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}
+          {% if t.priority == 'high' %}<span class="badge bg-danger">🔴 Высокий</span>
+          {% elif t.priority == 'low' %}<span class="badge bg-success">🟢 Низкий</span>
+          {% else %}<span class="badge bg-secondary">🟡 Обычный</span>{% endif %}
         </td>
-        <td class="text-muted text-nowrap">{{ t.due_date or '—' }}</td>
-        <td>{% if t.status == 'done' %}<span class="badge bg-success">✓ Готово</span>
-        {% else %}<span class="badge bg-warning text-dark">В работе</span>{% endif %}</td>
+        <td class="text-nowrap {% if t.status != 'done' and t.due_date and t.due_date < today_iso %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+          {{ t.due_date or '—' }}
+        </td>
+        <td>
+          {% if t.status == 'done' %}<span class="badge bg-success">✓ Готово</span>
+          {% elif t.due_date and t.due_date < today_iso %}<span class="badge bg-danger">Просрочено</span>
+          {% else %}<span class="badge bg-warning text-dark">В работе</span>{% endif %}
+        </td>
         <td>
           {% if t.status != 'done' %}
           <form method="post" action="/tasks/{{ t.id }}/done" style="display:inline">
@@ -80,21 +134,21 @@
   </div>
 </div>
 
-{# Модальное окно добавления задачи #}
+{# Модальное добавление #}
 <div class="modal fade" id="addTaskModal" tabindex="-1">
-  <div class="modal-dialog"><form method="post" action="/tasks/add" class="modal-content">
+  <div class="modal-dialog modal-lg"><form method="post" action="/tasks/add" class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Новая задача</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
     <div class="modal-body">
       <div class="mb-2"><label class="form-label fw-semibold">Задача *</label><input name="title" class="form-control" required></div>
       <div class="row g-2">
-        <div class="col-6">
+        <div class="col-md-6">
           <label class="form-label">Бухгалтер</label>
           <select name="accountant_id" class="form-select">
             <option value="">— не назначен —</option>
             {% for a in accountants %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}
           </select>
         </div>
-        <div class="col-6">
+        <div class="col-md-6">
           <label class="form-label">Компания</label>
           <select name="company_id" class="form-select">
             <option value="">— не привязана —</option>
@@ -103,12 +157,12 @@
         </div>
       </div>
       <div class="row g-2 mt-1">
-        <div class="col-6"><label class="form-label">Срок</label><input type="date" name="due_date" class="form-control"></div>
-        <div class="col-6"><label class="form-label">Приоритет</label>
+        <div class="col-md-4"><label class="form-label">Срок</label><input type="date" name="due_date" class="form-control"></div>
+        <div class="col-md-4"><label class="form-label">Приоритет</label>
           <select name="priority" class="form-select">
-            <option value="normal">Обычный</option>
-            <option value="high">Высокий</option>
-            <option value="low">Низкий</option>
+            <option value="normal">🟡 Обычный</option>
+            <option value="high">🔴 Высокий</option>
+            <option value="low">🟢 Низкий</option>
           </select>
         </div>
       </div>
