@@ -343,7 +343,11 @@ async def accountant_edit(
 async def accountant_delete(accountant_id: int, _=Depends(require_auth)):
     def _delete():
         with db.get_db() as conn:
-            conn.execute('DELETE FROM accountants WHERE id = ?', (accountant_id,))
+            # Снимаем ссылки на бухгалтера в компаниях (FK ON — нельзя удалить с ссылками)
+            conn.execute('UPDATE companies SET accountant_id=NULL WHERE accountant_id=?', (accountant_id,))
+            conn.execute('UPDATE companies SET payroll_accountant_id=NULL WHERE payroll_accountant_id=?', (accountant_id,))
+            conn.execute('UPDATE companies SET operator_id=NULL WHERE operator_id=?', (accountant_id,))
+            conn.execute('DELETE FROM accountants WHERE id=?', (accountant_id,))
     await asyncio.to_thread(_delete)
     return RedirectResponse('/accountants', status_code=303)
 
