@@ -70,28 +70,48 @@ def days_left(iso: str) -> int:
 # ─── Маршруты ─────────────────────────────────────────────────────────────────
 
 @app.get('/', response_class=HTMLResponse)
-async def dashboard(request: Request, _=Depends(require_auth)):
+async def dashboard(
+    request: Request, _=Depends(require_auth),
+    q: Optional[str] = None,
+    acc: Optional[str] = None,
+    tax: Optional[str] = None,
+    emp: Optional[str] = None,
+    mil: Optional[str] = None,
+):
     today = date.today()
 
-    companies_raw  = await asyncio.to_thread(db.get_all_companies)
-    upcoming_raw   = await asyncio.to_thread(db.get_upcoming_deadlines, 7)
-    overdue_raw    = await asyncio.to_thread(db.get_overdue_deadlines)
-    kpi_raw        = await asyncio.to_thread(db.get_accountant_stats_full, today.year, today.month)
+    companies_raw   = await asyncio.to_thread(db.get_all_companies)
+    upcoming_raw    = await asyncio.to_thread(db.get_upcoming_deadlines, 7)
+    overdue_raw     = await asyncio.to_thread(db.get_overdue_deadlines)
+    kpi_raw         = await asyncio.to_thread(db.get_accountant_stats_full, today.year, today.month)
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
 
     companies = [dict(c) for c in companies_raw]
 
+    # Применяем фильтры таблицы компаний
+    if q:
+        ql = q.lower()
+        companies = [c for c in companies if ql in c['name'].lower()]
+    if acc:
+        companies = [c for c in companies if str(c.get('accountant_id') or '') == acc]
+    if tax:
+        companies = [c for c in companies if c.get('tax_system') == tax]
+    if emp in ('0', '1'):
+        companies = [c for c in companies if str(c.get('has_employees', 0)) == emp]
+    if mil in ('0', '1'):
+        companies = [c for c in companies if str(c.get('has_military', 0)) == mil]
+
     upcoming = []
     for dl in upcoming_raw:
         d = dict(dl)
-        d['due_fmt']  = fmt_date(d['due_date'])
+        d['due_fmt']   = fmt_date(d['due_date'])
         d['days_left'] = days_left(d['due_date'])
         upcoming.append(d)
 
     overdue = []
     for dl in overdue_raw:
         d = dict(dl)
-        d['due_fmt']  = fmt_date(d['due_date'])
+        d['due_fmt']   = fmt_date(d['due_date'])
         d['days_over'] = abs(days_left(d['due_date']))
         overdue.append(d)
 
@@ -114,6 +134,7 @@ async def dashboard(request: Request, _=Depends(require_auth)):
             'accountants': [dict(a) for a in accountants_raw],
             'today':       today.strftime('%d.%m.%Y'),
             'month_label': f"{MONTHS_RU[today.month]} {today.year}",
+            'co_filters':  {'q': q or '', 'acc': acc or '', 'tax': tax or '', 'emp': emp or '', 'mil': mil or ''},
             'stats': {
                 'companies':  len(companies),
                 'upcoming':   len(upcoming),

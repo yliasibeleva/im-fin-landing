@@ -85,9 +85,46 @@
   </div>
 </div>
 <div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center bg-light">
-    <span><i class="bi bi-building me-2"></i>Все компании ({{ companies|length }})</span>
-    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addCoModal"><i class="bi bi-plus-lg me-1"></i>Добавить</button>
+  <div class="card-header bg-light">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <span><i class="bi bi-building me-2"></i>Все компании ({{ companies|length }})</span>
+      <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addCoModal"><i class="bi bi-plus-lg me-1"></i>Добавить</button>
+    </div>
+    <form method="get" class="row g-2 align-items-end" id="coFilter">
+      <div class="col-sm-3">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Поиск по названию..." value="{{ co_filters.q }}">
+      </div>
+      <div class="col-sm-2">
+        <select name="acc" class="form-select form-select-sm">
+          <option value="">Все бухгалтеры</option>
+          {% for a in accountants %}<option value="{{ a.id }}" {% if co_filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <select name="tax" class="form-select form-select-sm">
+          <option value="">Все СНО</option>
+          {% for t in ['УСН 6%','УСН 15%','ОСН','ЕСХН','ПСН','АУСН'] %}<option value="{{ t }}" {% if co_filters.tax == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <select name="emp" class="form-select form-select-sm">
+          <option value="">Сотрудники: все</option>
+          <option value="1" {% if co_filters.emp == '1' %}selected{% endif %}>Есть сотрудники</option>
+          <option value="0" {% if co_filters.emp == '0' %}selected{% endif %}>Без сотрудников</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <select name="mil" class="form-select form-select-sm">
+          <option value="">Воинский: все</option>
+          <option value="1" {% if co_filters.mil == '1' %}selected{% endif %}>Воинский учёт</option>
+          <option value="0" {% if co_filters.mil == '0' %}selected{% endif %}>Без воинского</option>
+        </select>
+      </div>
+      <div class="col-sm-1 d-flex gap-1">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel"></i></button>
+        <a href="/" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
+      </div>
+    </form>
   </div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0 align-middle">
