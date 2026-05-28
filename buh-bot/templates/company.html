@@ -15,7 +15,13 @@
       <div class="card-header bg-light"><i class="bi bi-person-badge me-2"></i>Основная информация</div>
       <div class="card-body">
         <div class="mb-1 text-muted section-title">Бухгалтер</div>
-        <div class="fw-semibold mb-3">{{ company.accountant_name or '— не назначен —' }}</div>
+        <div class="fw-semibold mb-2">{{ company.accountant_name or '— не назначен —' }}</div>
+        <div class="mb-1 text-muted section-title">Операционист</div>
+        <div class="fw-semibold mb-2">{{ company.operator_name or '—' }}</div>
+        <div class="mb-1 text-muted section-title">Зарплатник</div>
+        <div class="fw-semibold mb-2">{{ company.payroll_accountant_name or '—' }}</div>
+        <div class="mb-1 text-muted section-title">Кадры</div>
+        <div class="fw-semibold mb-3">{{ company.hr_accountant_name or '—' }}</div>
         <div class="mb-1 text-muted section-title">ИНН</div>
         <div class="mb-3">{{ company.inn or '—' }}</div>
         <div class="mb-1 text-muted section-title">Max группа</div>
@@ -64,6 +70,9 @@
             <div class="mb-2"><label class="form-label">СНО</label><select name="tax_system" class="form-select form-select-sm"><option {% if company.tax_system=='УСН 6%' %}selected{% endif %}>УСН 6%</option><option {% if company.tax_system=='УСН 15%' %}selected{% endif %}>УСН 15%</option><option {% if company.tax_system=='ОСН' %}selected{% endif %}>ОСН</option><option {% if company.tax_system=='ЕСХН' %}selected{% endif %}>ЕСХН</option><option {% if company.tax_system=='ПСН' %}selected{% endif %}>ПСН</option></select></div>
             <div class="mb-2"><label class="form-label">Тип</label><select name="org_type" class="form-select form-select-sm"><option {% if company.org_type=='ООО' %}selected{% endif %}>ООО</option><option {% if company.org_type=='ИП' %}selected{% endif %}>ИП</option><option {% if company.org_type=='АО' %}selected{% endif %}>АО</option><option {% if company.org_type=='НКО' %}selected{% endif %}>НКО</option></select></div>
             <div class="mb-2"><label class="form-label">Бухгалтер</label><select name="accountant_id" class="form-select form-select-sm"><option value="">— нет —</option>{% for a in accountants %}<option value="{{ a.id }}" {% if company.accountant_id==a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+            <div class="mb-2"><label class="form-label">Операционист</label><select name="operator_id" class="form-select form-select-sm"><option value="">— нет —</option>{% for a in accountants %}<option value="{{ a.id }}" {% if company.operator_id==a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+            <div class="mb-2"><label class="form-label">Зарплатник</label><select name="payroll_accountant_id" class="form-select form-select-sm"><option value="">— нет —</option>{% for a in accountants %}<option value="{{ a.id }}" {% if company.payroll_accountant_id==a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
+            <div class="mb-2"><label class="form-label">Кадры</label><select name="hr_accountant_id" class="form-select form-select-sm"><option value="">— нет —</option>{% for a in accountants %}<option value="{{ a.id }}" {% if company.hr_accountant_id==a.id %}selected{% endif %}>{{ a.name }}</option>{% endfor %}</select></div>
             <div class="row g-2 mb-3">
               <div class="col-6"><label class="form-label">Сотрудники</label><select name="has_employees" class="form-select form-select-sm"><option value="0" {% if not company.has_employees %}selected{% endif %}>Нет</option><option value="1" {% if company.has_employees %}selected{% endif %}>Да</option></select></div>
               <div class="col-6"><label class="form-label">Воинский</label><select name="has_military" class="form-select form-select-sm"><option value="0" {% if not company.has_military %}selected{% endif %}>Нет</option><option value="1" {% if company.has_military %}selected{% endif %}>Да</option></select></div>

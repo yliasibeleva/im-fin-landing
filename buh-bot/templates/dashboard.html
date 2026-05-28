@@ -91,16 +91,18 @@
   </div>
   <div class="card-body p-0">
     <table class="table table-hover mb-0 align-middle">
-      <thead><tr><th>Название</th><th>СНО</th><th>Тип</th><th>Бухгалтер</th><th>Описание бизнеса</th><th>Сотр.</th><th></th></tr></thead>
+      <thead><tr><th>Название</th><th>СНО</th><th>Тип</th><th>Операционист</th><th>Зарплатник</th><th>Кадры</th><th>Воинский учёт</th><th>Описание бизнеса</th><th></th></tr></thead>
       <tbody>
       {% for c in companies %}
       <tr>
         <td class="fw-semibold"><a href="/company/{{ c.id }}" class="text-decoration-none">{{ c.name }}</a></td>
         <td><span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' == c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}">{{ c.tax_system }}</span></td>
         <td><span class="badge rounded-pill {% if c.org_type == 'ООО' %}badge-ooo{% else %}badge-ip{% endif %}">{{ c.org_type or '—' }}</span></td>
-        <td class="text-muted">{{ c.accountant_name or '—' }}</td>
-        <td class="text-muted" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ c.description or '' }}">{{ c.description or '' }}</td>
-        <td>{% if c.has_employees %}<i class="bi bi-people-fill text-info"></i>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-muted small">{{ c.operator_name or '—' }}</td>
+        <td class="text-muted small">{{ c.payroll_accountant_name or '—' }}</td>
+        <td class="text-muted small">{{ c.hr_accountant_name or '—' }}</td>
+        <td class="text-center">{% if c.has_military %}<span class="badge bg-warning text-dark">✓</span>{% else %}<span class="text-muted">—</span>{% endif %}</td>
+        <td class="text-muted small" style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="{{ c.description or '' }}">{{ c.description or '' }}</td>
         <td><a href="/company/{{ c.id }}" class="btn btn-xs btn-outline-primary"><i class="bi bi-pencil-fill"></i></a></td>
       </tr>
       {% endfor %}

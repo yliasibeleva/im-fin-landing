@@ -229,6 +229,7 @@ async def company_edit(
     accountant_id: Optional[str] = Form(None),
     payroll_accountant_id: Optional[str] = Form(None),
     operator_id: Optional[str] = Form(None),
+    hr_accountant_id: Optional[str] = Form(None),
 ):
     await asyncio.to_thread(
         db.update_company, company_id,
@@ -239,6 +240,7 @@ async def company_edit(
         accountant_id=int(accountant_id) if accountant_id else None,
         payroll_accountant_id=int(payroll_accountant_id) if payroll_accountant_id else None,
         operator_id=int(operator_id) if operator_id else None,
+        hr_accountant_id=int(hr_accountant_id) if hr_accountant_id else None,
     )
     return RedirectResponse(f'/company/{company_id}', status_code=303)
 

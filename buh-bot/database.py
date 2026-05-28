@@ -117,6 +117,7 @@ def _migrate(conn) -> None:
         "ALTER TABLE accountants ADD COLUMN tg TEXT",
         "ALTER TABLE companies ADD COLUMN description TEXT",
         "ALTER TABLE companies ADD COLUMN has_stats_reporting INTEGER DEFAULT 0",
+        "ALTER TABLE companies ADD COLUMN hr_accountant_id INTEGER REFERENCES accountants(id)",
     ]
     for sql in migrations:
         try:
@@ -205,11 +206,13 @@ def get_all_companies(active_only: bool = True) -> list:
         q = """SELECT c.*,
                       a1.name as accountant_name,
                       a2.name as payroll_accountant_name,
-                      a3.name as operator_name
+                      a3.name as operator_name,
+                      a4.name as hr_accountant_name
                FROM companies c
                LEFT JOIN accountants a1 ON c.accountant_id = a1.id
                LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
-               LEFT JOIN accountants a3 ON c.operator_id = a3.id"""
+               LEFT JOIN accountants a3 ON c.operator_id = a3.id
+               LEFT JOIN accountants a4 ON c.hr_accountant_id = a4.id"""
         if active_only:
             q += " WHERE c.is_active = 1"
         q += " ORDER BY c.name"
@@ -222,11 +225,13 @@ def get_company(company_id: int):
             """SELECT c.*,
                       a1.name as accountant_name,
                       a2.name as payroll_accountant_name,
-                      a3.name as operator_name
+                      a3.name as operator_name,
+                      a4.name as hr_accountant_name
                FROM companies c
                LEFT JOIN accountants a1 ON c.accountant_id = a1.id
                LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
                LEFT JOIN accountants a3 ON c.operator_id = a3.id
+               LEFT JOIN accountants a4 ON c.hr_accountant_id = a4.id
                WHERE c.id = ?""",
             (company_id,)
         ).fetchone()
