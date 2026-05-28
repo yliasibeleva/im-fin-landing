@@ -494,6 +494,90 @@ async def task_done(task_id: int, _=Depends(require_auth)):
     return RedirectResponse('/tasks', status_code=303)
 
 
+# ─── Доп. работы (сводная) ───────────────────────────────────────────────────
+
+@app.get('/works', response_class=HTMLResponse)
+async def works_page(
+    request: Request, _=Depends(require_auth),
+    period: Optional[str] = None,
+    acc: Optional[str] = None,
+    wtype: Optional[str] = None,
+    q: Optional[str] = None,
+):
+    from calendar_data import WORK_TYPES
+    today = date.today()
+    if not period:
+        period = today.strftime('%Y-%m')
+    year, month = int(period[:4]), int(period[5:7])
+
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
+    companies_raw   = await asyncio.to_thread(db.get_all_companies)
+    works_raw       = await asyncio.to_thread(db.get_additional_works_for_month, year, month)
+
+    works = [dict(w) for w in works_raw]
+
+    if acc:
+        works = [w for w in works if str(w.get('accountant_id') or '') == acc]
+    if wtype:
+        works = [w for w in works if w.get('work_type') == wtype]
+    if q:
+        ql = q.lower()
+        works = [w for w in works if ql in (w.get('company_name') or '').lower()]
+
+    total_hours  = sum(w.get('hours') or 0 for w in works)
+    total_amount = sum(w.get('amount') or 0 for w in works)
+    companies_count = len({w['company_id'] for w in works})
+
+    # Сводка по бухгалтерам
+    by_acc: dict = {}
+    for w in works:
+        name = w.get('accountant_name') or '— не указан —'
+        if name not in by_acc:
+            by_acc[name] = {'name': name, 'cnt': 0, 'hours': 0, 'amount': 0}
+        by_acc[name]['cnt']    += 1
+        by_acc[name]['hours']  += w.get('hours') or 0
+        by_acc[name]['amount'] += w.get('amount') or 0
+    by_accountant = sorted(by_acc.values(), key=lambda x: -x['amount'])
+
+    MONTHS_RU_GEN = ['','января','февраля','марта','апреля','мая','июня',
+                     'июля','августа','сентября','октября','ноября','декабря']
+
+    return templates.TemplateResponse(request=request, name='works.html', context={
+        'works':           works,
+        'total_hours':     round(total_hours, 1),
+        'total_amount':    total_amount,
+        'companies_count': companies_count,
+        'by_accountant':   by_accountant,
+        'accountants':     [dict(a) for a in accountants_raw],
+        'companies':       [dict(c) for c in companies_raw],
+        'work_types':      WORK_TYPES,
+        'today':           today.strftime('%d.%m.%Y'),
+        'today_iso':       today.isoformat(),
+        'month_label':     f"{MONTHS_RU[month]} {year}",
+        'filters':         {'period': period, 'acc': acc or '', 'wtype': wtype or '', 'q': q or ''},
+    })
+
+
+@app.post('/works/add')
+async def work_add_global(
+    _=Depends(require_auth),
+    company_id: int = Form(...),
+    accountant_id: Optional[str] = Form(None),
+    work_type: str = Form(...),
+    work_date: str = Form(...),
+    description: str = Form(...),
+    hours: float = Form(0),
+    amount: float = Form(0),
+):
+    await asyncio.to_thread(
+        db.add_additional_work,
+        company_id, description, work_type, work_date,
+        int(accountant_id) if accountant_id else None,
+        hours, amount,
+    )
+    return RedirectResponse('/works', status_code=303)
+
+
 # ─── Журнал ошибок ────────────────────────────────────────────────────────────
 
 @app.get('/errors', response_class=HTMLResponse)
