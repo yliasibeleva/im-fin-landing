@@ -113,7 +113,7 @@
         <label class="form-label mb-1 small fw-semibold">СНО</label>
         <select name="tax" class="form-select form-select-sm">
           <option value="">Все</option>
-          {% for t in ['УСН 6%','УСН 15%','ОСН','ЕСХН','ПСН','АУСН'] %}<option value="{{ t }}" {% if co_filters.tax == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
+          {% for t in ['УСН 6%','УСН 15%','ОСН','ЕСХН','ПСН','АУСН','ПСН+УСН','ЕСХН+НДС','ОСН+ПСН'] %}<option value="{{ t }}" {% if co_filters.tax == t %}selected{% endif %}>{{ t }}</option>{% endfor %}
         </select>
       </div>
       <div class="col-sm-1">
@@ -168,7 +168,7 @@
       <div class="mb-3"><label class="form-label fw-semibold">Название *</label><input name="name" class="form-control" required></div>
       <div class="row g-2">
         <div class="col-6"><label class="form-label">Тип</label><select name="org_type" class="form-select"><option>ООО</option><option>ИП</option><option>АО</option><option>НКО</option></select></div>
-        <div class="col-6"><label class="form-label">СНО</label><select name="tax_system" class="form-select"><option>УСН 6%</option><option>УСН 15%</option><option>ОСН</option><option>ЕСХН</option><option>ПСН</option></select></div>
+        <div class="col-6"><label class="form-label">СНО</label><select name="tax_system" class="form-select"><option>УСН 6%</option><option>УСН 15%</option><option>ОСН</option><option>ЕСХН</option><option>ПСН</option><option>АУСН</option><option>ПСН+УСН</option><option>ЕСХН+НДС</option><option>ОСН+ПСН</option></select></div>
       </div>
       <div class="row g-2 mt-1">
         <div class="col-6"><label class="form-label">Бухгалтер</label><select name="accountant_id" class="form-select"><option value="">— не назначен —</option>{% for a in accountants %}<option value="{{ a.id }}">{{ a.name }}</option>{% endfor %}</select></div>
