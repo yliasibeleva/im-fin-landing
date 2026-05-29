@@ -278,34 +278,55 @@ async def company_edit(
 
 # ─── Отчётность ───────────────────────────────────────────────────────────────
 
-# Типы отчётов для матрицы (в порядке отображения)
-_REPORT_SHOW_TYPES = {
-    'НДС', 'Прибыль', 'Платёж НДС', 'Платёж Прибыль',
+# ── Классификация типов отчётов ──────────────────────────────────────────────
+
+# Квартальные (один дедлайн на квартал)
+_Q_TYPES = {
+    'НДС', 'Прибыль', 'Платёж Прибыль',
     'УСН', 'Платёж УСН', 'ЕСХН', 'Платёж ЕСХН',
-    '6-НДФЛ', 'РСВ', 'ЕФС-1', 'БО',
-    'Воинский учёт', 'Статотчётность',
+    '6-НДФЛ', 'РСВ', 'ЕФС-1', 'БО', 'Воинский учёт', 'Статотчётность',
 }
-_TYPE_ORDER = ['НДС', 'Платёж НДС', 'Прибыль', 'Платёж Прибыль',
-               'УСН', 'Платёж УСН', 'ЕСХН', 'Платёж ЕСХН',
-               '6-НДФЛ', 'РСВ', 'ЕФС-1', 'Воинский учёт', 'Статотчётность', 'БО']
+_Q_TYPE_ORDER = ['НДС', 'Прибыль', 'Платёж Прибыль', 'УСН', 'Платёж УСН',
+                 'ЕСХН', 'Платёж ЕСХН', '6-НДФЛ', 'РСВ', 'ЕФС-1',
+                 'Воинский учёт', 'Статотчётность', 'БО']
+
+# Ежемесячные (отдельный столбец на каждый месяц)
+_M_TYPES = {'Платёж НДС', 'Перс.сведения', 'Платёж СВ'}
+_M_TYPE_ORDER = ['Перс.сведения', 'Платёж НДС', 'Платёж СВ']
+
 _TYPE_SHORT = {
-    'НДС': 'НДС', 'Платёж НДС': 'П.НДС', 'Прибыль': 'Прибыль',
-    'Платёж Прибыль': 'П.Приб', 'УСН': 'УСН', 'Платёж УСН': 'П.УСН',
-    'ЕСХН': 'ЕСХН', 'Платёж ЕСХН': 'П.ЕСХН',
+    'НДС': 'НДС', 'Прибыль': 'Прибыль', 'Платёж Прибыль': 'П.Прибыль',
+    'УСН': 'УСН', 'Платёж УСН': 'П.УСН', 'ЕСХН': 'ЕСХН', 'Платёж ЕСХН': 'П.ЕСХН',
     '6-НДФЛ': '6-НДФЛ', 'РСВ': 'РСВ', 'ЕФС-1': 'ЕФС-1',
     'БО': 'БО', 'Воинский учёт': 'Воинск.', 'Статотчётность': 'Статотч.',
+    'Платёж НДС': 'П.НДС', 'Перс.сведения': 'Перс.св.', 'Платёж СВ': 'П.СВ',
 }
+
 _QUARTERS = [
-    (2, 'II кв.  (апр–июн)',  4,  6),
-    (3, 'III кв.  (июл–сен)', 7,  9),
-    (4, 'IV кв.  (окт–дек)', 10, 12),
+    (2, 'II кв. (апр–июн)',  4,  6),
+    (3, 'III кв. (июл–сен)', 7,  9),
+    (4, 'IV кв. (окт–дек)', 10, 12),
 ]
+
+_MONTHS_RU = {
+    4:'Апр', 5:'Май', 6:'Июн', 7:'Июл', 8:'Авг',
+    9:'Сен', 10:'Окт', 11:'Ноя', 12:'Дек',
+}
 
 
 def _urgency(due: str, today_iso: str, in2: str) -> str:
     if due < today_iso: return 'overdue'
     if due <= in2:      return '2days'
     return 'ok'
+
+
+def _normalize_rtype(rtype: str, rname: str) -> str:
+    """Переопределяет тип для ежемесячных 'ЕФС-1' — это Перс.сведения."""
+    if rtype == 'ЕФС-1' and 'Перс. сведения' in rname:
+        return 'Перс.сведения'
+    if rtype == 'ЕФС-1' and 'Страховые' in rname:
+        return 'Платёж СВ'
+    return rtype
 
 
 @app.get('/reports', response_class=HTMLResponse)
@@ -316,90 +337,120 @@ async def reports_page(
     org_type: Optional[str] = None,
 ):
     from datetime import timedelta
-    today    = date.today()
-    yr       = int(year) if year else today.year
+    from collections import Counter
+    today     = date.today()
+    yr        = int(year) if year else today.year
     today_iso = today.isoformat()
-    in2      = (today + timedelta(days=2)).isoformat()
+    in2       = (today + timedelta(days=2)).isoformat()
 
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
     companies_raw   = await asyncio.to_thread(db.get_all_companies)
-
-    # Дедлайны с Q2 по Q4 (апрель–декабрь)
-    deadlines_raw = await asyncio.to_thread(
+    deadlines_raw   = await asyncio.to_thread(
         db.get_all_deadlines_full, yr, None, None, None, None
     )
+
     q2_start = f'{yr}-04-01'
     q4_end   = f'{yr}-12-31'
 
-    # Индексируем: (company_id, report_type, quarter_num) → наиболее срочный дедлайн
-    dl_index: dict = {}
+    def _prio(x):
+        if x['status'] == 'done': return 0
+        return {'overdue': 3, '2days': 2, 'ok': 1}.get(_urgency(x['due_date'], today_iso, in2), 1)
+
+    def _build_cell(d):
+        urg = 'done' if d['status'] == 'done' else _urgency(d['due_date'], today_iso, in2)
+        return {'status': d['status'], 'due': d['due_date'][:10],
+                'id': d['id'], 'urgency': urg, 'name': d['report_name']}
+
+    # ── Квартальный индекс ────────────────────────────────────────────────────
+    qi: dict = {}   # (cid, rtype_norm, qnum) → deadline
+    # ── Ежемесячный индекс ────────────────────────────────────────────────────
+    mi: dict = {}   # (cid, rtype_norm, month_num) → deadline
+
     for dl in deadlines_raw:
         d = dict(dl)
-        rtype = d['report_type']
-        if rtype not in _REPORT_SHOW_TYPES:
-            continue
         due = d['due_date']
         if not (q2_start <= due <= q4_end):
             continue
-        for qnum, _, qm_start, qm_end in _QUARTERS:
-            if f'{yr}-{qm_start:02d}-01' <= due <= f'{yr}-{qm_end:02d}-31':
-                key = (d['company_id'], rtype, qnum)
-                # Приоритет: overdue > 2days > pending > done
-                if key not in dl_index:
-                    dl_index[key] = d
-                else:
-                    ex = dl_index[key]
-                    # Заменяем если новый более срочный
-                    def _prio(x):
-                        if x['status'] == 'done': return 0
-                        u = _urgency(x['due_date'], today_iso, in2)
-                        return {'overdue': 3, '2days': 2, 'ok': 1}[u]
-                    if _prio(d) > _prio(ex):
-                        dl_index[key] = d
-                break
+        rtype = _normalize_rtype(d['report_type'], d['report_name'])
+        mo = int(due[5:7])
 
-    # Определяем столбцы (только те, что есть хотя бы у одной компании)
-    col_set: set = set()
-    due_by_col: dict = {}
-    for (cid, rtype, qnum), d in dl_index.items():
-        col_key = (qnum, rtype)
-        col_set.add(col_key)
-        # Запоминаем типичную дату для заголовка
-        if col_key not in due_by_col or d['due_date'] < due_by_col[col_key]:
-            due_by_col[col_key] = d['due_date']
+        if rtype in _M_TYPES:
+            key = (d['company_id'], rtype, mo)
+            if key not in mi or _prio(d) > _prio(mi[key]):
+                mi[key] = d
+        elif rtype in _Q_TYPES:
+            for qnum, _, qm_s, qm_e in _QUARTERS:
+                if qm_s <= mo <= qm_e:
+                    key = (d['company_id'], rtype, qnum)
+                    if key not in qi or _prio(d) > _prio(qi[key]):
+                        qi[key] = d
+                    break
 
-    def _col_sort(c):
+    # ── Столбцы квартальной матрицы ───────────────────────────────────────────
+    qcol_set: set = set()
+    qdue_by: dict = {}
+    for (cid, rtype, qnum), d in qi.items():
+        qcol_set.add((qnum, rtype))
+        ck = (qnum, rtype)
+        if ck not in qdue_by or d['due_date'] < qdue_by[ck]:
+            qdue_by[ck] = d['due_date']
+
+    def _qsort(c):
         q, t = c
-        try: return (q, _TYPE_ORDER.index(t))
+        try: return (q, _Q_TYPE_ORDER.index(t))
         except: return (q, 99)
 
-    sorted_cols = sorted(col_set, key=_col_sort)
-
-    col_defs = []
-    for qnum, rtype in sorted_cols:
+    q_col_defs = []
+    for qnum, rtype in sorted(qcol_set, key=_qsort):
         due_lbl = ''
-        raw_due = due_by_col.get((qnum, rtype), '')
-        if raw_due:
-            try:
-                due_lbl = date.fromisoformat(raw_due).strftime('%d.%m')
+        raw = qdue_by.get((qnum, rtype), '')
+        if raw:
+            try: due_lbl = date.fromisoformat(raw).strftime('%d.%m')
             except: pass
-        col_defs.append({
-            'col_key': f'{qnum}_{rtype}',
+        q_col_defs.append({
+            'col_key': f'q{qnum}_{rtype}',
             'quarter_num': qnum,
             'type': rtype,
-            'short': _TYPE_SHORT.get(rtype, rtype[:6]),
+            'short': _TYPE_SHORT.get(rtype, rtype[:7]),
             'due_label': due_lbl,
         })
 
-    # Группировка столбцов по кварталам
-    from collections import Counter
-    q_cnt = Counter(c['quarter_num'] for c in col_defs)
-    quarter_groups = []
-    for qnum, qlabel, _, _ in _QUARTERS:
-        if q_cnt[qnum]:
-            quarter_groups.append((qnum, qlabel, q_cnt[qnum]))
+    q_cnt = Counter(c['quarter_num'] for c in q_col_defs)
+    quarter_groups = [(qnum, ql, q_cnt[qnum]) for qnum, ql, _, _ in _QUARTERS if q_cnt[qnum]]
 
-    # Фильтруем компании
+    # ── Столбцы ежемесячной матрицы ───────────────────────────────────────────
+    # Определяем активные месяцы и типы
+    m_types_present: set = set()
+    m_months_present: set = set()
+    for (cid, rtype, mo) in mi:
+        m_types_present.add(rtype)
+        m_months_present.add(mo)
+
+    m_months = sorted(m_months_present)
+    m_types  = [t for t in _M_TYPE_ORDER if t in m_types_present]
+
+    m_col_defs = []
+    for mo in m_months:
+        for rtype in m_types:
+            # Ищем типичную дату для заголовка
+            sample = next((mi[k] for k in mi if k[1] == rtype and k[2] == mo), None)
+            due_lbl = ''
+            if sample:
+                try: due_lbl = date.fromisoformat(sample['due_date']).strftime('%d.%m')
+                except: pass
+            m_col_defs.append({
+                'col_key': f'm{mo}_{rtype}',
+                'month_num': mo,
+                'month_label': _MONTHS_RU.get(mo, str(mo)),
+                'type': rtype,
+                'short': _TYPE_SHORT.get(rtype, rtype[:7]),
+                'due_label': due_lbl,
+            })
+
+    # Группировка по месяцам для заголовка
+    m_month_groups = [(mo, _MONTHS_RU.get(mo, str(mo)), len(m_types)) for mo in m_months]
+
+    # ── Фильтрация компаний ───────────────────────────────────────────────────
     companies = [dict(c) for c in companies_raw]
     if acc:
         companies = [c for c in companies if str(c.get('accountant_id') or '') == acc]
@@ -407,57 +458,62 @@ async def reports_page(
         companies = [c for c in companies if c.get('org_type') == org_type]
     companies.sort(key=lambda c: (c.get('accountant_name') or '', c['name']))
 
-    # Строим матрицу
-    matrix: dict = {}
+    # ── Квартальная матрица ───────────────────────────────────────────────────
+    q_matrix: dict = {}
     for c in companies:
         cid = c['id']
         row: dict = {}
-        for col in col_defs:
-            qnum = col['quarter_num']
-            rtype = col['type']
-            key = (cid, rtype, qnum)
-            ckey = col['col_key']
-            if key in dl_index:
-                d = dl_index[key]
-                if d['status'] == 'done':
-                    urg = 'done'
-                else:
-                    urg = _urgency(d['due_date'], today_iso, in2)
-                row[ckey] = {
-                    'status':  d['status'],
-                    'due':     d['due_date'][:10],
-                    'id':      d['id'],
-                    'urgency': urg,
-                    'name':    d['report_name'],
-                }
-            else:
-                row[ckey] = None
-        matrix[str(cid)] = row
+        for col in q_col_defs:
+            key = (cid, col['type'], col['quarter_num'])
+            row[col['col_key']] = _build_cell(qi[key]) if key in qi else None
+        q_matrix[str(cid)] = row
 
-    # Счётчики
-    all_cells  = [v for row in matrix.values() for v in row.values() if v is not None]
-    done_cnt   = sum(1 for v in all_cells if v['status'] == 'done')
-    overdue_cnt= sum(1 for v in all_cells if v['urgency'] == 'overdue')
-    critical_cnt=sum(1 for v in all_cells if v['urgency'] == '2days')
+    # ── Ежемесячная матрица ───────────────────────────────────────────────────
+    m_matrix: dict = {}
+    for c in companies:
+        cid = c['id']
+        row: dict = {}
+        for col in m_col_defs:
+            key = (cid, col['type'], col['month_num'])
+            row[col['col_key']] = _build_cell(mi[key]) if key in mi else None
+        m_matrix[str(cid)] = row
+
+    # Только компании с хотя бы одним ежемесячным дедлайном
+    m_companies = [c for c in companies
+                   if any(m_matrix[str(c['id'])].values())]
+
+    # ── Счётчики ─────────────────────────────────────────────────────────────
+    all_q = [v for row in q_matrix.values() for v in row.values() if v]
+    all_m = [v for row in m_matrix.values() for v in row.values() if v]
+    all_cells = all_q + all_m
+    done_cnt    = sum(1 for v in all_cells if v['status'] == 'done')
+    overdue_cnt = sum(1 for v in all_cells if v['urgency'] == 'overdue')
+    critical_cnt= sum(1 for v in all_cells if v['urgency'] == '2days')
     pending_cnt = len(all_cells) - done_cnt
-    total_cells = len(all_cells)
-    pct_done   = round(done_cnt / total_cells * 100) if total_cells else 0
+    pct_done    = round(done_cnt / len(all_cells) * 100) if all_cells else 0
 
     return templates.TemplateResponse(request=request, name='reports.html', context={
-        'col_defs':       col_defs,
-        'quarter_groups': quarter_groups,
-        'company_rows':   companies,
-        'matrix':         matrix,
-        'done_cnt':       done_cnt,
-        'pending_cnt':    pending_cnt,
-        'overdue_cnt':    overdue_cnt,
-        'critical_cnt':   critical_cnt,
-        'pct_done':       pct_done,
-        'has_data':       bool(dl_index),
-        'accountants':    [dict(a) for a in accountants_raw],
-        'year':           yr,
-        'years':          list(range(today.year - 1, today.year + 2)),
-        'filters':        {'acc': acc or '', 'org_type': org_type or ''},
+        # Квартальный блок
+        'q_col_defs':      q_col_defs,
+        'quarter_groups':  quarter_groups,
+        'q_matrix':        q_matrix,
+        # Ежемесячный блок
+        'm_col_defs':      m_col_defs,
+        'm_month_groups':  m_month_groups,
+        'm_matrix':        m_matrix,
+        'm_companies':     m_companies,
+        # Общее
+        'company_rows':    companies,
+        'done_cnt':        done_cnt,
+        'pending_cnt':     pending_cnt,
+        'overdue_cnt':     overdue_cnt,
+        'critical_cnt':    critical_cnt,
+        'pct_done':        pct_done,
+        'has_data':        bool(qi) or bool(mi),
+        'accountants':     [dict(a) for a in accountants_raw],
+        'year':            yr,
+        'years':           list(range(today.year - 1, today.year + 2)),
+        'filters':         {'acc': acc or '', 'org_type': org_type or ''},
     })
 
 

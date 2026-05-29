@@ -2,23 +2,23 @@
 {% block title %}Отчётность — Империя Финанс{% endblock %}
 {% block content %}
 <style>
-  .rep-table th, .rep-table td { padding: .25rem .4rem; font-size: .78rem; white-space: nowrap; }
-  .rep-table th { background: #f1f4f9; text-align: center; }
-  .rep-done    { background: #d4edda; color: #155724; text-align: center; cursor: default; }
-  .rep-overdue { background: #f8d7da; color: #721c24; text-align: center; }
-  .rep-2days   { background: #fff3cd; color: #856404; text-align: center; }
-  .rep-ok      { background: #fff;    color: #555;    text-align: center; }
-  .rep-na      { background: #f8f9fa; color: #ccc;    text-align: center; }
-  .rep-done form button, .rep-overdue form button, .rep-2days form button, .rep-ok form button { font-size: .7rem; padding: 0 .3rem; }
+  .rep-table { border-collapse: collapse; }
+  .rep-table th, .rep-table td { padding: .2rem .35rem; font-size: .77rem; white-space: nowrap; border: 1px solid #dee2e6; }
+  .rep-table th { background: #f1f4f9; text-align: center; vertical-align: middle; }
+  .rep-done    { background: #d4edda !important; color: #155724; text-align: center; }
+  .rep-overdue { background: #f8d7da !important; color: #721c24; text-align: center; }
+  .rep-2days   { background: #fff3cd !important; color: #856404; text-align: center; }
+  .rep-ok      { background: #fff;               color: #aaa;    text-align: center; }
+  .rep-na      { background: #f8f9fa;             color: #ddd;    text-align: center; }
+  .rep-btn     { border: none; background: none; font-size: .8rem; cursor: pointer; padding: 0; line-height: 1; }
   .q2-hdr { background: #cfe2ff !important; }
-  .q3-hdr { background: #d1ecf1 !important; }
-  .q4-hdr { background: #d4edda !important; }
-  .q2-sub { background: #e8f0ff !important; }
-  .q3-sub { background: #e8f7fa !important; }
-  .q4-sub { background: #ebf7ee !important; }
-  .sticky-left { position: sticky; left: 0; background: #fff; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,.07); }
-  .sticky-l2   { position: sticky; left: 120px; background: #fff; z-index: 2; }
-  .sticky-l3   { position: sticky; left: 240px; background: #fff; z-index: 2; }
+  .q3-hdr { background: #d1f0e8 !important; }
+  .q4-hdr { background: #fde8d0 !important; }
+  .m-hdr  { background: #e8d5f5 !important; }
+  .sticky-left { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: 2px 0 4px rgba(0,0,0,.06); min-width: 130px; }
+  .sticky-l2   { position: sticky; left: 130px; z-index: 2; background: #fff; min-width: 110px; }
+  .sticky-l3   { position: sticky; left: 240px; z-index: 2; background: #fff; min-width: 70px; }
+  .hscroll     { overflow-x: auto; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -57,98 +57,84 @@
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
         <a href="/reports" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
       </div>
-      <div class="col-sm-6 d-flex align-items-end gap-3 small text-muted">
+      <div class="col d-flex align-items-end gap-3 small text-muted flex-wrap">
         <span><span class="badge bg-success">✓</span> Сдано</span>
         <span><span class="badge bg-danger">!</span> Просрочено</span>
         <span><span class="badge bg-warning text-dark">⚠</span> 2 дня</span>
         <span><span class="badge bg-secondary">·</span> Ожидание</span>
-        <span><span style="color:#ccc">—</span> Не применимо</span>
+        <span style="color:#ddd">—</span><span class="text-muted">Не применимо</span>
       </div>
     </form>
   </div>
 </div>
 
-{# Карточки-итоги #}
+{# Счётчики #}
 <div class="row g-2 mb-3">
-  <div class="col-4 col-md-2"><div class="card stat-card blue p-2 text-center"><div class="text-muted section-title">Компаний</div><div class="fs-3 fw-bold text-primary">{{ company_rows|length }}</div></div></div>
-  <div class="col-4 col-md-2"><div class="card stat-card green p-2 text-center"><div class="text-muted section-title">Сдано</div><div class="fs-3 fw-bold text-success">{{ done_cnt }}</div></div></div>
-  <div class="col-4 col-md-2"><div class="card stat-card orange p-2 text-center"><div class="text-muted section-title">Ожидание</div><div class="fs-3 fw-bold text-warning">{{ pending_cnt }}</div></div></div>
-  <div class="col-4 col-md-2"><div class="card stat-card red p-2 text-center"><div class="text-muted section-title">Просрочено</div><div class="fs-3 fw-bold text-danger">{{ overdue_cnt }}</div></div></div>
-  <div class="col-4 col-md-2"><div class="card p-2 text-center" style="border-left:4px solid #fd7e14"><div class="text-muted section-title">2 дня</div><div class="fs-3 fw-bold" style="color:#fd7e14">{{ critical_cnt }}</div></div></div>
-  <div class="col-4 col-md-2"><div class="card p-2 text-center bg-light"><div class="text-muted section-title">Исполнение</div><div class="fs-5 fw-bold">{{ pct_done }}%</div></div></div>
+  <div class="col"><div class="card p-2 text-center stat-card blue"><div class="text-muted section-title">Компаний</div><div class="fs-3 fw-bold text-primary">{{ company_rows|length }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center stat-card green"><div class="text-muted section-title">Сдано</div><div class="fs-3 fw-bold text-success">{{ done_cnt }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center stat-card orange"><div class="text-muted section-title">Ожидание</div><div class="fs-3 fw-bold text-warning">{{ pending_cnt }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center stat-card red"><div class="text-muted section-title">Просрочено</div><div class="fs-3 fw-bold text-danger">{{ overdue_cnt }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center" style="border-left:4px solid #fd7e14"><div class="text-muted section-title">2 дня</div><div class="fs-3 fw-bold" style="color:#fd7e14">{{ critical_cnt }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center bg-light"><div class="text-muted section-title">Исполнение</div><div class="fw-bold fs-5">{{ pct_done }}%</div><div class="progress mt-1" style="height:6px"><div class="progress-bar {% if pct_done>=90 %}bg-success{% elif pct_done>=60 %}bg-warning{% else %}bg-danger{% endif %}" style="width:{{ pct_done }}%"></div></div></div></div>
 </div>
 
 {% if not has_data %}
 <div class="card p-5 text-center text-muted">
   <i class="bi bi-calendar-x fs-2"></i>
   <div class="mt-2 fw-semibold">Дедлайны не сгенерированы</div>
-  <div class="small mt-1">Нажмите «Сгенерировать» выше</div>
+  <div class="small mt-1">Нажмите «Сгенерировать» выше — система создаст все отчёты по режимам налогообложения</div>
 </div>
 {% else %}
-<div class="card">
-  <div class="card-body p-0" style="overflow-x:auto">
-    <table class="table table-bordered rep-table mb-0">
+
+{# ══ КВАРТАЛЬНАЯ МАТРИЦА ══════════════════════════════════════════════════════ #}
+{% if q_col_defs %}
+<div class="fw-bold text-secondary section-title mb-2 mt-1"><i class="bi bi-calendar3 me-1"></i>ДЕКЛАРАЦИИ И КВАРТАЛЬНЫЕ ОТЧЁТЫ</div>
+<div class="card mb-4">
+  <div class="card-body p-0 hscroll">
+    <table class="table rep-table mb-0">
       <thead>
-        {# Строка 1: группировка по кварталам #}
         <tr>
-          <th rowspan="2" class="sticky-left" style="min-width:120px">Компания</th>
-          <th rowspan="2" class="sticky-l2" style="min-width:120px">Бухгалтер</th>
-          <th rowspan="2" class="sticky-l3" style="min-width:70px">СНО</th>
+          <th rowspan="3" class="sticky-left">Компания</th>
+          <th rowspan="3" class="sticky-l2">Бухгалтер</th>
+          <th rowspan="3" class="sticky-l3">СНО</th>
           {% for qnum, qlabel, cnt in quarter_groups %}
-          <th colspan="{{ cnt }}" class="q{{ qnum }}-hdr text-center">{{ qlabel }}</th>
+          <th colspan="{{ cnt }}" class="q{{ qnum }}-hdr">{{ qlabel }}</th>
           {% endfor %}
         </tr>
-        {# Строка 2: типы отчётов #}
         <tr>
-          {% for col in col_defs %}
-          <th class="q{{ col.quarter_num }}-sub" title="{{ col.type }}" style="min-width:52px">{{ col.short }}</th>
+          {% for col in q_col_defs %}
+          <th class="q{{ col.quarter_num }}-hdr" title="{{ col.type }}">{{ col.short }}</th>
           {% endfor %}
         </tr>
-        {# Строка 3: даты дедлайнов #}
         <tr>
-          <td class="sticky-left text-muted" style="font-size:.7rem">Срок</td>
-          <td class="sticky-l2"></td>
-          <td class="sticky-l3"></td>
-          {% for col in col_defs %}
-          <td class="text-center text-muted" style="font-size:.65rem">{{ col.due_label }}</td>
+          {% for col in q_col_defs %}
+          <th class="q{{ col.quarter_num }}-hdr" style="font-weight:normal;color:#888;font-size:.68rem">{{ col.due_label }}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
       {% for c in company_rows %}
-      {% set row = matrix[c.id|string] %}
+      {% set row = q_matrix[c.id|string] %}
       <tr>
-        <td class="sticky-left fw-semibold">
-          <a href="/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a>
-        </td>
+        <td class="sticky-left fw-semibold"><a href="/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a></td>
         <td class="sticky-l2 text-muted small">{{ c.accountant_name or '—' }}</td>
-        <td class="sticky-l3">
-          <span class="badge rounded-pill {% if 'ОСН' in c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' in c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.65rem">{{ c.tax_system }}</span>
-        </td>
-        {% for col in col_defs %}
+        <td class="sticky-l3"><span class="badge rounded-pill {% if 'ОСН' in c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' in c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.63rem">{{ c.tax_system }}</span></td>
+        {% for col in q_col_defs %}
         {% set cell = row.get(col.col_key) %}
         {% if cell is none %}
-        <td class="rep-na">—</td>
+          <td class="rep-na">—</td>
         {% elif cell.urgency == 'done' %}
-        <td class="rep-done" title="{{ cell.name }}">✓</td>
-        {% elif cell.urgency == 'overdue' %}
-        <td class="rep-overdue" title="{{ cell.name }} — просрочено до {{ cell.due }}">
-          <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
-            <button class="btn btn-xs btn-danger" title="Отметить сданным">!</button>
-          </form>
-        </td>
-        {% elif cell.urgency == '2days' %}
-        <td class="rep-2days" title="{{ cell.name }} — срок {{ cell.due }}">
-          <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
-            <button class="btn btn-xs btn-warning" title="Отметить сданным">⚠</button>
-          </form>
-        </td>
+          <td class="rep-done" title="✓ {{ cell.name }}">
+            <span>✓</span>
+          </td>
         {% else %}
-        <td class="rep-ok" title="{{ cell.name }} — срок {{ cell.due }}">
-          <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
-            <button class="btn btn-xs btn-outline-secondary" title="Отметить сданным">·</button>
-          </form>
-        </td>
+          <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} — срок {{ cell.due }}">
+            <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
+              <button type="submit" class="rep-btn" title="Отметить сданным">
+                {% if cell.urgency == 'overdue' %}!{% elif cell.urgency == '2days' %}⚠{% else %}·{% endif %}
+              </button>
+            </form>
+          </td>
         {% endif %}
         {% endfor %}
       </tr>
@@ -157,5 +143,64 @@
     </table>
   </div>
 </div>
+{% endif %}
+
+{# ══ ЕЖЕМЕСЯЧНАЯ МАТРИЦА ═════════════════════════════════════════════════════ #}
+{% if m_col_defs and m_companies %}
+<div class="fw-bold text-secondary section-title mb-2"><i class="bi bi-calendar-month me-1"></i>ЕЖЕМЕСЯЧНЫЕ ОТЧЁТЫ (перс. сведения, платёж НДС, страховые взносы)</div>
+<div class="card mb-4">
+  <div class="card-body p-0 hscroll">
+    <table class="table rep-table mb-0">
+      <thead>
+        <tr>
+          <th rowspan="3" class="sticky-left">Компания</th>
+          <th rowspan="3" class="sticky-l2">Бухгалтер</th>
+          <th rowspan="3" class="sticky-l3">СНО</th>
+          {% for mo, mlabel, cnt in m_month_groups %}
+          <th colspan="{{ cnt }}" class="m-hdr">{{ mlabel }}</th>
+          {% endfor %}
+        </tr>
+        <tr>
+          {% for col in m_col_defs %}
+          <th class="m-hdr" title="{{ col.type }}">{{ col.short }}</th>
+          {% endfor %}
+        </tr>
+        <tr>
+          {% for col in m_col_defs %}
+          <th class="m-hdr" style="font-weight:normal;color:#888;font-size:.68rem">{{ col.due_label }}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in m_companies %}
+      {% set row = m_matrix[c.id|string] %}
+      <tr>
+        <td class="sticky-left fw-semibold"><a href="/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a></td>
+        <td class="sticky-l2 text-muted small">{{ c.accountant_name or '—' }}</td>
+        <td class="sticky-l3"><span class="badge rounded-pill {% if 'ОСН' in c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' in c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.63rem">{{ c.tax_system }}</span></td>
+        {% for col in m_col_defs %}
+        {% set cell = row.get(col.col_key) %}
+        {% if cell is none %}
+          <td class="rep-na">—</td>
+        {% elif cell.urgency == 'done' %}
+          <td class="rep-done" title="✓ {{ cell.name }}"><span>✓</span></td>
+        {% else %}
+          <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} — срок {{ cell.due }}">
+            <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
+              <button type="submit" class="rep-btn" title="Сдано">
+                {% if cell.urgency == 'overdue' %}!{% elif cell.urgency == '2days' %}⚠{% else %}·{% endif %}
+              </button>
+            </form>
+          </td>
+        {% endif %}
+        {% endfor %}
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 {% endif %}
 {% endblock %}
