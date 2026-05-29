@@ -82,8 +82,6 @@ async def dashboard(
     today = date.today()
 
     companies_raw   = await asyncio.to_thread(db.get_all_companies)
-    upcoming_raw    = await asyncio.to_thread(db.get_upcoming_deadlines, 7)
-    overdue_raw     = await asyncio.to_thread(db.get_overdue_deadlines)
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
 
     companies = [dict(c) for c in companies_raw]
@@ -107,20 +105,6 @@ async def dashboard(
         companies = [c for c in companies if str(c.get('has_employees', 0)) == emp]
     if mil in ('0', '1'):
         companies = [c for c in companies if str(c.get('has_military', 0)) == mil]
-
-    upcoming = []
-    for dl in upcoming_raw:
-        d = dict(dl)
-        d['due_fmt']   = fmt_date(d['due_date'])
-        d['days_left'] = days_left(d['due_date'])
-        upcoming.append(d)
-
-    overdue = []
-    for dl in overdue_raw:
-        d = dict(dl)
-        d['due_fmt']   = fmt_date(d['due_date'])
-        d['days_over'] = abs(days_left(d['due_date']))
-        overdue.append(d)
 
     accountants = [dict(a) for a in accountants_raw]
 
@@ -150,16 +134,12 @@ async def dashboard(
         name='dashboard.html',
         context={
             'companies':      companies,
-            'upcoming':       upcoming,
-            'overdue':        overdue,
             'accountants':    accountants,
             'staff_summary':  staff_summary,
             'today':       today.strftime('%d.%m.%Y'),
             'co_filters':  {'q': q or '', 'acc': acc or '', 'op': op or '', 'tax': tax or '', 'emp': emp or '', 'mil': mil or ''},
             'stats': {
-                'companies':  len(companies),
-                'upcoming':   len(upcoming),
-                'overdue':    len(overdue),
+                'companies':   len(companies),
                 'accountants': len(accountants),
             },
         }

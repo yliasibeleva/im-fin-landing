@@ -46,63 +46,7 @@
 
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3"><div class="card stat-card blue p-3"><div class="text-muted section-title">Компании</div><div class="fs-2 fw-bold text-primary">{{ stats.companies }}</div></div></div>
-  <div class="col-6 col-md-3"><div class="card stat-card orange p-3"><div class="text-muted section-title">Дедлайны 7 дней</div><div class="fs-2 fw-bold text-warning">{{ stats.upcoming }}</div></div></div>
-  <div class="col-6 col-md-3"><div class="card stat-card red p-3"><div class="text-muted section-title">Просрочено</div><div class="fs-2 fw-bold text-danger">{{ stats.overdue }}</div></div></div>
   <div class="col-6 col-md-3"><div class="card stat-card green p-3"><div class="text-muted section-title">Бухгалтеры</div><div class="fs-2 fw-bold text-success">{{ stats.accountants }}</div></div></div>
-</div>
-<div class="row g-4 mb-4">
-  <div class="col-lg-6">
-    <div class="card h-100">
-      <div class="card-header bg-warning text-dark"><i class="bi bi-clock-history me-2"></i>Ближайшие 7 дней ({{ upcoming|length }})</div>
-      <div class="card-body p-0">
-        {% if upcoming %}
-        <table class="table table-hover mb-0 align-middle">
-          <thead><tr><th>Срок</th><th>Компания</th><th>Отчёт</th><th>Бухгалтер</th><th>Дней</th></tr></thead>
-          <tbody>
-          {% for dl in upcoming %}
-          <tr class="{% if dl.days_left <= 1 %}dl-overdue{% elif dl.days_left <= 3 %}dl-soon{% endif %}">
-            <td class="text-nowrap fw-semibold">{{ dl.due_fmt }}</td>
-            <td><a href="/company/{{ dl.company_id }}" class="text-decoration-none fw-semibold">{{ dl.company_name }}</a></td>
-            <td>{{ dl.report_name }}</td>
-            <td class="text-muted">{{ dl.accountant_name or '—' }}</td>
-            <td>{% if dl.days_left == 0 %}<span class="badge bg-danger">сегодня</span>
-            {% elif dl.days_left <= 3 %}<span class="badge bg-warning text-dark">{{ dl.days_left }} дн</span>
-            {% else %}<span class="badge bg-secondary">{{ dl.days_left }} дн</span>{% endif %}</td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="p-4 text-center text-muted"><i class="bi bi-check-circle fs-3 text-success"></i><div class="mt-2">Дедлайнов нет</div></div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
-  <div class="col-lg-6">
-    <div class="card h-100">
-      <div class="card-header bg-danger text-white"><i class="bi bi-exclamation-triangle-fill me-2"></i>Просроченные ({{ overdue|length }})</div>
-      <div class="card-body p-0">
-        {% if overdue %}
-        <table class="table table-hover mb-0 align-middle">
-          <thead><tr><th>Срок</th><th>Компания</th><th>Отчёт</th><th>Бухгалтер</th><th>Просроч.</th></tr></thead>
-          <tbody>
-          {% for dl in overdue %}
-          <tr class="dl-overdue">
-            <td class="text-nowrap text-danger fw-semibold">{{ dl.due_fmt }}</td>
-            <td><a href="/company/{{ dl.company_id }}" class="text-decoration-none fw-semibold">{{ dl.company_name }}</a></td>
-            <td>{{ dl.report_name }}</td>
-            <td class="text-muted">{{ dl.accountant_name or '—' }}</td>
-            <td><span class="badge bg-danger">+{{ dl.days_over }} дн</span></td>
-          </tr>
-          {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <div class="p-4 text-center text-muted"><i class="bi bi-check-circle fs-3 text-success"></i><div class="mt-2">Просрочек нет</div></div>
-        {% endif %}
-      </div>
-    </div>
-  </div>
 </div>
 <div class="card mb-4">
   <div class="card-header bg-light">
