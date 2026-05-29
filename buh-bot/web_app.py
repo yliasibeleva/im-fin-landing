@@ -84,7 +84,6 @@ async def dashboard(
     companies_raw   = await asyncio.to_thread(db.get_all_companies)
     upcoming_raw    = await asyncio.to_thread(db.get_upcoming_deadlines, 7)
     overdue_raw     = await asyncio.to_thread(db.get_overdue_deadlines)
-    kpi_raw         = await asyncio.to_thread(db.get_accountant_stats_full, today.year, today.month)
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
 
     companies = [dict(c) for c in companies_raw]
@@ -123,14 +122,7 @@ async def dashboard(
         d['days_over'] = abs(days_left(d['due_date']))
         overdue.append(d)
 
-    kpi = []
-    for s in kpi_raw:
-        d = dict(s)
-        total = d.get('total_deadlines') or 0
-        done  = d.get('done_deadlines') or 0
-        d['pct_done'] = round(done / total * 100) if total > 0 else 0
-        kpi.append(d)
-
+    accountants = [dict(a) for a in accountants_raw]
     return templates.TemplateResponse(
         request=request,
         name='dashboard.html',
@@ -138,16 +130,14 @@ async def dashboard(
             'companies':   companies,
             'upcoming':    upcoming,
             'overdue':     overdue,
-            'kpi':         kpi,
-            'accountants': [dict(a) for a in accountants_raw],
+            'accountants': accountants,
             'today':       today.strftime('%d.%m.%Y'),
-            'month_label': f"{MONTHS_RU[today.month]} {today.year}",
             'co_filters':  {'q': q or '', 'acc': acc or '', 'op': op or '', 'tax': tax or '', 'emp': emp or '', 'mil': mil or ''},
             'stats': {
                 'companies':  len(companies),
                 'upcoming':   len(upcoming),
                 'overdue':    len(overdue),
-                'accountants': len(kpi),
+                'accountants': len(accountants),
             },
         }
     )
@@ -698,6 +688,46 @@ async def accountant_delete(accountant_id: int, _=Depends(require_auth)):
             conn.execute('DELETE FROM accountants WHERE id=?', (accountant_id,))
     await asyncio.to_thread(_delete)
     return RedirectResponse('/accountants', status_code=303)
+
+
+# ─── KPI бухгалтеров ──────────────────────────────────────────────────────────
+
+@app.get('/kpi', response_class=HTMLResponse)
+async def kpi_page(
+    request: Request, _=Depends(require_auth),
+    year: Optional[str] = None,
+    month: Optional[str] = None,
+):
+    today = date.today()
+    sel_year  = int(year)  if year  else today.year
+    sel_month = int(month) if month else today.month
+
+    kpi_raw = await asyncio.to_thread(
+        db.get_accountant_stats_full, sel_year, sel_month
+    )
+    kpi = []
+    for s in kpi_raw:
+        d = dict(s)
+        total = d.get('total_deadlines') or 0
+        done  = d.get('done_deadlines') or 0
+        d['pct_done'] = round(done / total * 100) if total else 0
+        kpi.append(d)
+
+    MONTHS = [
+        (1,'Январь'),(2,'Февраль'),(3,'Март'),(4,'Апрель'),
+        (5,'Май'),(6,'Июнь'),(7,'Июль'),(8,'Август'),
+        (9,'Сентябрь'),(10,'Октябрь'),(11,'Ноябрь'),(12,'Декабрь'),
+    ]
+
+    return templates.TemplateResponse(request=request, name='kpi.html', context={
+        'kpi':        kpi,
+        'sel_year':   sel_year,
+        'sel_month':  sel_month,
+        'month_label': f"{MONTHS_RU[sel_month]} {sel_year}",
+        'today':      today.strftime('%d.%m.%Y'),
+        'years':      list(range(today.year - 2, today.year + 2)),
+        'months':     MONTHS,
+    })
 
 
 # ─── Дедлайны ─────────────────────────────────────────────────────────────────

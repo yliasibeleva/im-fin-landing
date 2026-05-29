@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}KPI бухгалтеров — Империя Финанс{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart-fill me-2 text-primary"></i>KPI бухгалтеров</h4>
+  <div class="d-flex gap-2 align-items-center">
+    <form method="get" class="d-flex gap-2 align-items-center">
+      <label class="small fw-semibold text-muted mb-0">Период:</label>
+      <select name="year" class="form-select form-select-sm" style="width:90px" onchange="this.form.submit()">
+        {% for y in years %}<option value="{{ y }}" {% if y == sel_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+      <select name="month" class="form-select form-select-sm" style="width:110px" onchange="this.form.submit()">
+        {% for m, n in months %}<option value="{{ m }}" {% if m == sel_month %}selected{% endif %}>{{ n }}</option>{% endfor %}
+      </select>
+    </form>
+  </div>
+</div>
+
+{# Итоговые карточки #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3"><div class="card stat-card blue p-3"><div class="text-muted section-title">Бухгалтеров</div><div class="fs-2 fw-bold text-primary">{{ kpi|length }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat-card green p-3"><div class="text-muted section-title">Выполнено</div><div class="fs-2 fw-bold text-success">{{ kpi|sum(attribute='done_deadlines') }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat-card red p-3"><div class="text-muted section-title">Просрочено</div><div class="fs-2 fw-bold text-danger">{{ kpi|sum(attribute='overdue_deadlines') }}</div></div></div>
+  <div class="col-6 col-md-3"><div class="card stat-card orange p-3"><div class="text-muted section-title">Доп. работ ₽</div><div class="fs-2 fw-bold text-warning">{{ kpi|sum(attribute='extra_amount') | rub }}</div></div></div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header bg-primary text-white fw-semibold">
+    <i class="bi bi-bar-chart-fill me-2"></i>Сводная таблица KPI — {{ month_label }}
+  </div>
+  <div class="card-body p-0">
+    {% if kpi %}
+    <table class="table table-hover mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Бухгалтер</th>
+          <th class="text-center">Компаний</th>
+          <th class="text-center">Дедлайнов</th>
+          <th class="text-center text-success">Выполнено</th>
+          <th class="text-center text-danger">Просрочено</th>
+          <th style="min-width:120px">% исполнения</th>
+          <th class="text-center">Ошибок</th>
+          <th class="text-center">Доп. часы</th>
+          <th class="text-center">Доп. сумма</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in kpi %}
+      <tr>
+        <td class="fw-semibold">{{ s.name }}</td>
+        <td class="text-center">{{ s.company_count or 0 }}</td>
+        <td class="text-center">{{ s.total_deadlines or 0 }}</td>
+        <td class="text-center text-success fw-semibold">{{ s.done_deadlines or 0 }}</td>
+        <td class="text-center">
+          {% if s.overdue_deadlines %}<span class="text-danger fw-bold">{{ s.overdue_deadlines }}</span>
+          {% else %}<span class="text-muted">0</span>{% endif %}
+        </td>
+        <td>
+          <div class="d-flex align-items-center gap-2">
+            <div class="progress flex-grow-1" style="height:16px">
+              <div class="progress-bar
+                {% if s.pct_done >= 90 %}bg-success
+                {% elif s.pct_done >= 60 %}bg-warning
+                {% else %}bg-danger{% endif %}"
+                style="width:{{ s.pct_done }}%">{{ s.pct_done }}%</div>
+            </div>
+          </div>
+        </td>
+        <td class="text-center">
+          {% if s.error_count %}<span class="badge bg-danger">{{ s.error_count }}</span>
+          {% else %}<span class="text-muted">0</span>{% endif %}
+        </td>
+        <td class="text-center">{{ s.extra_hours or 0 }}</td>
+        <td class="text-center fw-semibold {% if s.extra_amount %}text-success{% endif %}">
+          {{ s.extra_amount | rub }} ₽
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot class="table-light fw-bold">
+        <tr>
+          <td>ИТОГО</td>
+          <td class="text-center">{{ kpi|sum(attribute='company_count') }}</td>
+          <td class="text-center">{{ kpi|sum(attribute='total_deadlines') }}</td>
+          <td class="text-center text-success">{{ kpi|sum(attribute='done_deadlines') }}</td>
+          <td class="text-center text-danger">{{ kpi|sum(attribute='overdue_deadlines') }}</td>
+          <td></td>
+          <td class="text-center">{{ kpi|sum(attribute='error_count') }}</td>
+          <td class="text-center">{{ kpi|sum(attribute='extra_hours') }}</td>
+          <td class="text-center text-success">{{ kpi|sum(attribute='extra_amount') | rub }} ₽</td>
+        </tr>
+      </tfoot>
+    </table>
+    {% else %}
+    <div class="p-4 text-center text-muted">Нет данных за {{ month_label }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

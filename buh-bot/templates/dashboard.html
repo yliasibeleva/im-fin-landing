@@ -62,29 +62,6 @@
   </div>
 </div>
 <div class="card mb-4">
-  <div class="card-header bg-primary text-white"><i class="bi bi-bar-chart-fill me-2"></i>KPI бухгалтеров — {{ month_label }}</div>
-  <div class="card-body p-0">
-    {% if kpi %}
-    <table class="table table-hover mb-0 align-middle">
-      <thead><tr><th>Бухгалтер</th><th>Компаний</th><th>Дедлайнов</th><th>Выполнено</th><th>Просрочено</th><th>% исполнения</th><th>Ошибок</th><th>Доп.ч</th><th>Доп.₽</th></tr></thead>
-      <tbody>
-      {% for s in kpi %}<tr>
-        <td class="fw-semibold">{{ s.name }}</td>
-        <td>{{ s.company_count or 0 }}</td>
-        <td>{{ s.total_deadlines or 0 }}</td>
-        <td class="text-success fw-semibold">{{ s.done_deadlines or 0 }}</td>
-        <td>{% if s.overdue_deadlines %}<span class="text-danger fw-bold">{{ s.overdue_deadlines }}</span>{% else %}0{% endif %}</td>
-        <td><div class="progress" style="height:18px;min-width:80px"><div class="progress-bar {% if s.pct_done >= 90 %}bg-success{% elif s.pct_done >= 60 %}bg-warning{% else %}bg-danger{% endif %}" style="width:{{ s.pct_done }}%">{{ s.pct_done }}%</div></div></td>
-        <td>{% if s.error_count %}<span class="text-danger">{{ s.error_count }}</span>{% else %}0{% endif %}</td>
-        <td>{{ s.extra_hours or 0 }}</td>
-        <td>{{ s.extra_amount | rub }} ₽</td>
-      </tr>{% endfor %}
-      </tbody>
-    </table>
-    {% else %}<div class="p-3 text-muted">Нет данных за {{ month_label }}</div>{% endif %}
-  </div>
-</div>
-<div class="card mb-4">
   <div class="card-header bg-light">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <span><i class="bi bi-building me-2"></i>Все компании ({{ companies|length }})</span>
