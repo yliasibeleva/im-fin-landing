@@ -1,48 +1,6 @@
 ﻿{% extends "base.html" %}
 {% block title %}Дашборд — Империя Финанс{% endblock %}
 {% block content %}
-{# ══ СВОДКА ПО СОТРУДНИКАМ ═══════════════════════════════════════════════════ #}
-{% if staff_summary %}
-<div class="card mb-4">
-  <div class="card-header bg-light fw-semibold">
-    <i class="bi bi-people-fill me-2 text-primary"></i>Закрепление компаний по сотрудникам
-  </div>
-  <div class="card-body p-0" style="overflow-x:auto">
-    <table class="table table-sm table-hover mb-0 align-middle" style="font-size:.86rem">
-      <thead>
-        <tr>
-          <th style="min-width:160px">Сотрудник</th>
-          <th class="text-center" style="width:60px">Всего</th>
-          <th style="min-width:220px"><span class="badge bg-primary me-1">●</span>Бухгалтер</th>
-          <th style="min-width:220px"><span class="badge bg-success me-1">●</span>Зарплатник</th>
-          <th style="min-width:220px"><span class="badge bg-warning text-dark me-1">●</span>Операционист</th>
-          <th style="min-width:220px"><span class="badge bg-info text-dark me-1">●</span>Кадры</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for s in staff_summary %}
-      <tr>
-        <td class="fw-semibold">{{ s.name }}</td>
-        <td class="text-center fw-bold text-primary">{{ s.total }}</td>
-        {% for role in ['Бухгалтер','Зарплатник','Операционист','Кадры'] %}
-        <td style="max-width:250px">
-          {% if role in s.roles %}
-            <span class="text-muted small me-1">{{ s.roles[role]|length }}</span>
-            {% for c in s.roles[role]|sort(attribute='name') %}
-              <a href="/company/{{ c.id }}" class="text-decoration-none text-dark small">{{ c.name }}</a>{% if not loop.last %}, {% endif %}
-            {% endfor %}
-          {% else %}
-            <span class="text-muted">—</span>
-          {% endif %}
-        </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3"><div class="card stat-card blue p-3"><div class="text-muted section-title">Компании</div><div class="fs-2 fw-bold text-primary">{{ stats.companies }}</div></div></div>
