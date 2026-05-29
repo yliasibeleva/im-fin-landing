@@ -9,6 +9,11 @@ import io
 import os
 import secrets
 from datetime import date
+try:
+    import httpx as _httpx
+    _HTTPX_OK = True
+except ImportError:
+    _HTTPX_OK = False
 
 import uvicorn
 from dotenv import load_dotenv
@@ -25,7 +30,24 @@ load_dotenv()
 db.init_db()  # применяем миграции при старте
 
 WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'admin')
-WEB_PORT = int(os.getenv('WEB_PORT', '8000'))
+WEB_PORT     = int(os.getenv('WEB_PORT', '8000'))
+
+TG_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
+TG_CHAT  = os.getenv('TELEGRAM_CHAT_ID', '')
+
+
+async def tg(text: str) -> None:
+    """Отправляет уведомление в Telegram. Молчит если токен не настроен."""
+    if not TG_TOKEN or not TG_CHAT or not _HTTPX_OK:
+        return
+    try:
+        async with _httpx.AsyncClient(timeout=5) as client:
+            await client.post(
+                f'https://api.telegram.org/bot{TG_TOKEN}/sendMessage',
+                json={'chat_id': TG_CHAT, 'text': text, 'parse_mode': 'HTML'},
+            )
+    except Exception:
+        pass
 
 app = FastAPI(title='Империя Финанс — Дашборд')
 templates = Jinja2Templates(directory='templates')
@@ -220,6 +242,7 @@ async def company_add(
         has_military=int(has_military == '1'),
         accountant_id=int(accountant_id) if accountant_id else None,
     )
+    await tg(f'🏢 <b>Добавлена новая компания</b>\n{org_type} «{name}» · {tax_system}')
     return RedirectResponse('/', status_code=303)
 
 
@@ -579,7 +602,11 @@ async def reports_generate(_=Depends(require_auth), year: int = Form(...)):
 
 @app.post('/reports/{deadline_id}/done')
 async def report_done(deadline_id: int, _=Depends(require_auth)):
+    dl = await asyncio.to_thread(db.get_deadline, deadline_id)
     await asyncio.to_thread(db.mark_deadline_done, deadline_id)
+    if dl:
+        d = dict(dl)
+        await tg(f'📄 <b>Отчёт сдан</b>\n{d.get("company_name","?")} — {d.get("report_name","?")}')
     return RedirectResponse('/reports', status_code=303)
 
 
@@ -787,7 +814,10 @@ async def deadlines_page(
 
 @app.post('/deadlines/{deadline_id}/done')
 async def deadline_done_global(deadline_id: int, _=Depends(require_auth)):
+    dl = await asyncio.to_thread(db.get_deadline, deadline_id)
     await asyncio.to_thread(db.mark_deadline_done, deadline_id)
+    if dl:
+        await tg(f'✅ <b>Дедлайн выполнен</b>\n{dict(dl).get("company_name","?")} — {dict(dl).get("report_name","?")}')
     return RedirectResponse('/deadlines', status_code=303)
 
 
@@ -851,12 +881,17 @@ async def task_add(
         int(accountant_id) if accountant_id else None,
         description or None, due_date or None, priority,
     )
+    prio_label = {'high': '🔴', 'low': '🟢'}.get(priority, '🟡')
+    await tg(f'📋 <b>Новая задача</b>\n{prio_label} {title}' + (f'\nСрок: {due_date}' if due_date else ''))
     return RedirectResponse('/tasks', status_code=303)
 
 
 @app.post('/tasks/{task_id}/done')
 async def task_done(task_id: int, _=Depends(require_auth)):
+    t = await asyncio.to_thread(db.get_task, task_id)
     await asyncio.to_thread(db.mark_task_done, task_id)
+    if t:
+        await tg(f'✅ <b>Задача выполнена</b>\n{dict(t).get("title","?")}')
     return RedirectResponse('/tasks', status_code=303)
 
 
@@ -995,6 +1030,9 @@ async def error_add(
         db.add_error, accountant_id, description, error_date,
         int(company_id) if company_id else None,
     )
+    acc = await asyncio.to_thread(db.get_accountant, accountant_id)
+    acc_name = dict(acc)['name'] if acc else '?'
+    await tg(f'⚠️ <b>Зафиксирована ошибка</b>\n{acc_name}\n{description[:120]}')
     return RedirectResponse('/errors', status_code=303)
 
 
@@ -1089,6 +1127,14 @@ async def _do_export_excel():
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': f'attachment; filename="{filename_ascii}"'},
     )
+
+
+@app.get('/tg/test')
+async def tg_test(_=Depends(require_auth)):
+    if not TG_TOKEN or not TG_CHAT:
+        return {'status': 'error', 'message': 'TELEGRAM_BOT_TOKEN или TELEGRAM_CHAT_ID не заполнены в .env'}
+    await tg('🔔 <b>Тест уведомлений</b>\nCRM Империя Финанс работает!\n✅ Уведомления настроены.')
+    return {'status': 'ok', 'message': 'Сообщение отправлено в Telegram'}
 
 
 if __name__ == '__main__':
