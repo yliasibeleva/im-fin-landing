@@ -278,33 +278,207 @@ async def company_edit(
 
 # ─── Отчётность ───────────────────────────────────────────────────────────────
 
+# Типы отчётов для матрицы (в порядке отображения)
+_REPORT_SHOW_TYPES = {
+    'НДС', 'Прибыль', 'Платёж НДС', 'Платёж Прибыль',
+    'УСН', 'Платёж УСН', 'ЕСХН', 'Платёж ЕСХН',
+    '6-НДФЛ', 'РСВ', 'ЕФС-1', 'БО',
+    'Воинский учёт', 'Статотчётность',
+}
+_TYPE_ORDER = ['НДС', 'Платёж НДС', 'Прибыль', 'Платёж Прибыль',
+               'УСН', 'Платёж УСН', 'ЕСХН', 'Платёж ЕСХН',
+               '6-НДФЛ', 'РСВ', 'ЕФС-1', 'Воинский учёт', 'Статотчётность', 'БО']
+_TYPE_SHORT = {
+    'НДС': 'НДС', 'Платёж НДС': 'П.НДС', 'Прибыль': 'Прибыль',
+    'Платёж Прибыль': 'П.Приб', 'УСН': 'УСН', 'Платёж УСН': 'П.УСН',
+    'ЕСХН': 'ЕСХН', 'Платёж ЕСХН': 'П.ЕСХН',
+    '6-НДФЛ': '6-НДФЛ', 'РСВ': 'РСВ', 'ЕФС-1': 'ЕФС-1',
+    'БО': 'БО', 'Воинский учёт': 'Воинск.', 'Статотчётность': 'Статотч.',
+}
+_QUARTERS = [
+    (2, 'II кв.  (апр–июн)',  4,  6),
+    (3, 'III кв.  (июл–сен)', 7,  9),
+    (4, 'IV кв.  (окт–дек)', 10, 12),
+]
+
+
+def _urgency(due: str, today_iso: str, in2: str) -> str:
+    if due < today_iso: return 'overdue'
+    if due <= in2:      return '2days'
+    return 'ok'
+
+
 @app.get('/reports', response_class=HTMLResponse)
 async def reports_page(
     request: Request, _=Depends(require_auth),
     year: Optional[str] = None,
-    month: Optional[str] = None,
     acc: Optional[str] = None,
-    company: Optional[str] = None,
-    status_f: Optional[str] = None,
-    tab: Optional[str] = None,
+    org_type: Optional[str] = None,
 ):
-    import datetime as _dt
-    today = date.today()
-    yr = int(year) if year else today.year
-    mo = int(month) if month else None
+    from datetime import timedelta
+    today    = date.today()
+    yr       = int(year) if year else today.year
+    today_iso = today.isoformat()
+    in2      = (today + timedelta(days=2)).isoformat()
 
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
     companies_raw   = await asyncio.to_thread(db.get_all_companies)
-    deadlines_raw   = await asyncio.to_thread(
-        db.get_all_deadlines_full, yr, mo,
-        int(acc) if acc else None,
-        int(company) if company else None,
-        status_f or None,
-    )
 
+    # Дедлайны с Q2 по Q4 (апрель–декабрь)
+    deadlines_raw = await asyncio.to_thread(
+        db.get_all_deadlines_full, yr, None, None, None, None
+    )
+    q2_start = f'{yr}-04-01'
+    q4_end   = f'{yr}-12-31'
+
+    # Индексируем: (company_id, report_type, quarter_num) → наиболее срочный дедлайн
+    dl_index: dict = {}
+    for dl in deadlines_raw:
+        d = dict(dl)
+        rtype = d['report_type']
+        if rtype not in _REPORT_SHOW_TYPES:
+            continue
+        due = d['due_date']
+        if not (q2_start <= due <= q4_end):
+            continue
+        for qnum, _, qm_start, qm_end in _QUARTERS:
+            if f'{yr}-{qm_start:02d}-01' <= due <= f'{yr}-{qm_end:02d}-31':
+                key = (d['company_id'], rtype, qnum)
+                # Приоритет: overdue > 2days > pending > done
+                if key not in dl_index:
+                    dl_index[key] = d
+                else:
+                    ex = dl_index[key]
+                    # Заменяем если новый более срочный
+                    def _prio(x):
+                        if x['status'] == 'done': return 0
+                        u = _urgency(x['due_date'], today_iso, in2)
+                        return {'overdue': 3, '2days': 2, 'ok': 1}[u]
+                    if _prio(d) > _prio(ex):
+                        dl_index[key] = d
+                break
+
+    # Определяем столбцы (только те, что есть хотя бы у одной компании)
+    col_set: set = set()
+    due_by_col: dict = {}
+    for (cid, rtype, qnum), d in dl_index.items():
+        col_key = (qnum, rtype)
+        col_set.add(col_key)
+        # Запоминаем типичную дату для заголовка
+        if col_key not in due_by_col or d['due_date'] < due_by_col[col_key]:
+            due_by_col[col_key] = d['due_date']
+
+    def _col_sort(c):
+        q, t = c
+        try: return (q, _TYPE_ORDER.index(t))
+        except: return (q, 99)
+
+    sorted_cols = sorted(col_set, key=_col_sort)
+
+    col_defs = []
+    for qnum, rtype in sorted_cols:
+        due_lbl = ''
+        raw_due = due_by_col.get((qnum, rtype), '')
+        if raw_due:
+            try:
+                due_lbl = date.fromisoformat(raw_due).strftime('%d.%m')
+            except: pass
+        col_defs.append({
+            'col_key': f'{qnum}_{rtype}',
+            'quarter_num': qnum,
+            'type': rtype,
+            'short': _TYPE_SHORT.get(rtype, rtype[:6]),
+            'due_label': due_lbl,
+        })
+
+    # Группировка столбцов по кварталам
+    from collections import Counter
+    q_cnt = Counter(c['quarter_num'] for c in col_defs)
+    quarter_groups = []
+    for qnum, qlabel, _, _ in _QUARTERS:
+        if q_cnt[qnum]:
+            quarter_groups.append((qnum, qlabel, q_cnt[qnum]))
+
+    # Фильтруем компании
+    companies = [dict(c) for c in companies_raw]
+    if acc:
+        companies = [c for c in companies if str(c.get('accountant_id') or '') == acc]
+    if org_type:
+        companies = [c for c in companies if c.get('org_type') == org_type]
+    companies.sort(key=lambda c: (c.get('accountant_name') or '', c['name']))
+
+    # Строим матрицу
+    matrix: dict = {}
+    for c in companies:
+        cid = c['id']
+        row: dict = {}
+        for col in col_defs:
+            qnum = col['quarter_num']
+            rtype = col['type']
+            key = (cid, rtype, qnum)
+            ckey = col['col_key']
+            if key in dl_index:
+                d = dl_index[key]
+                if d['status'] == 'done':
+                    urg = 'done'
+                else:
+                    urg = _urgency(d['due_date'], today_iso, in2)
+                row[ckey] = {
+                    'status':  d['status'],
+                    'due':     d['due_date'][:10],
+                    'id':      d['id'],
+                    'urgency': urg,
+                    'name':    d['report_name'],
+                }
+            else:
+                row[ckey] = None
+        matrix[str(cid)] = row
+
+    # Счётчики
+    all_cells  = [v for row in matrix.values() for v in row.values() if v is not None]
+    done_cnt   = sum(1 for v in all_cells if v['status'] == 'done')
+    overdue_cnt= sum(1 for v in all_cells if v['urgency'] == 'overdue')
+    critical_cnt=sum(1 for v in all_cells if v['urgency'] == '2days')
+    pending_cnt = len(all_cells) - done_cnt
+    total_cells = len(all_cells)
+    pct_done   = round(done_cnt / total_cells * 100) if total_cells else 0
+
+    return templates.TemplateResponse(request=request, name='reports.html', context={
+        'col_defs':       col_defs,
+        'quarter_groups': quarter_groups,
+        'company_rows':   companies,
+        'matrix':         matrix,
+        'done_cnt':       done_cnt,
+        'pending_cnt':    pending_cnt,
+        'overdue_cnt':    overdue_cnt,
+        'critical_cnt':   critical_cnt,
+        'pct_done':       pct_done,
+        'has_data':       bool(dl_index),
+        'accountants':    [dict(a) for a in accountants_raw],
+        'year':           yr,
+        'years':          list(range(today.year - 1, today.year + 2)),
+        'filters':        {'acc': acc or '', 'org_type': org_type or ''},
+    })
+
+
+@app.get('/reports/list', response_class=HTMLResponse)
+async def reports_list_page(
+    request: Request, _=Depends(require_auth),
+    year: Optional[str] = None,
+    acc: Optional[str] = None,
+    tab: Optional[str] = None,
+):
+    from datetime import timedelta
+    today    = date.today()
+    yr       = int(year) if year else today.year
     today_iso = today.isoformat()
-    in2 = (today + _dt.timedelta(days=2)).isoformat()
-    in7 = (today + _dt.timedelta(days=7)).isoformat()
+    in2      = (today + timedelta(days=2)).isoformat()
+
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
+    deadlines_raw   = await asyncio.to_thread(
+        db.get_all_deadlines_full, yr, None,
+        int(acc) if acc else None, None, None
+    )
 
     deadlines = []
     for dl in deadlines_raw:
@@ -317,8 +491,6 @@ async def reports_page(
             d['urgency'] = 'overdue'
         elif due <= in2:
             d['urgency'] = '2days'
-        elif due <= in7:
-            d['urgency'] = '7days'
         else:
             d['urgency'] = 'ok'
         deadlines.append(d)
@@ -326,8 +498,6 @@ async def reports_page(
     show = deadlines
     if tab == 'unsent':
         show = [d for d in deadlines if d['status'] != 'done']
-    elif tab == 'overdue':
-        show = [d for d in deadlines if d['urgency'] == 'overdue']
     elif tab == 'critical':
         show = [d for d in deadlines if d['urgency'] in ('overdue', '2days')]
 
@@ -336,7 +506,7 @@ async def reports_page(
     overdue_cnt = sum(1 for d in deadlines if d['urgency'] == 'overdue')
     critical_cnt= sum(1 for d in deadlines if d['urgency'] == '2days')
 
-    return templates.TemplateResponse(request=request, name='reports.html', context={
+    return templates.TemplateResponse(request=request, name='reports_list.html', context={
         'deadlines':    show,
         'all_count':    total,
         'done_cnt':     done_cnt,
@@ -344,21 +514,18 @@ async def reports_page(
         'overdue_cnt':  overdue_cnt,
         'critical_cnt': critical_cnt,
         'pct_done':     round(done_cnt / total * 100) if total else 0,
-        'has_data':     total > 0,
         'accountants':  [dict(a) for a in accountants_raw],
-        'companies':    [dict(c) for c in companies_raw],
         'today':        today.strftime('%d.%m.%Y'),
-        'today_iso':    today_iso,
+        'year':         yr,
         'years':        list(range(today.year - 1, today.year + 2)),
-        'filters':      {'year': str(yr), 'month': month or '', 'acc': acc or '',
-                         'company': company or '', 'status': status_f or '', 'tab': tab or ''},
+        'filters':      {'acc': acc or '', 'tab': tab or ''},
     })
 
 
 @app.post('/reports/generate')
 async def reports_generate(_=Depends(require_auth), year: int = Form(...)):
     await asyncio.to_thread(db.generate_deadlines_for_all, year)
-    return RedirectResponse(f'/reports?year={year}&tab=unsent', status_code=303)
+    return RedirectResponse(f'/reports?year={year}', status_code=303)
 
 
 @app.post('/reports/{deadline_id}/done')

@@ -1,35 +1,43 @@
 {% extends "base.html" %}
 {% block title %}Отчётность — Империя Финанс{% endblock %}
 {% block content %}
+<style>
+  .rep-table th, .rep-table td { padding: .25rem .4rem; font-size: .78rem; white-space: nowrap; }
+  .rep-table th { background: #f1f4f9; text-align: center; }
+  .rep-done    { background: #d4edda; color: #155724; text-align: center; cursor: default; }
+  .rep-overdue { background: #f8d7da; color: #721c24; text-align: center; }
+  .rep-2days   { background: #fff3cd; color: #856404; text-align: center; }
+  .rep-ok      { background: #fff;    color: #555;    text-align: center; }
+  .rep-na      { background: #f8f9fa; color: #ccc;    text-align: center; }
+  .rep-done form button, .rep-overdue form button, .rep-2days form button, .rep-ok form button { font-size: .7rem; padding: 0 .3rem; }
+  .q2-hdr { background: #cfe2ff !important; }
+  .q3-hdr { background: #d1ecf1 !important; }
+  .q4-hdr { background: #d4edda !important; }
+  .q2-sub { background: #e8f0ff !important; }
+  .q3-sub { background: #e8f7fa !important; }
+  .q4-sub { background: #ebf7ee !important; }
+  .sticky-left { position: sticky; left: 0; background: #fff; z-index: 2; box-shadow: 2px 0 4px rgba(0,0,0,.07); }
+  .sticky-l2   { position: sticky; left: 120px; background: #fff; z-index: 2; }
+  .sticky-l3   { position: sticky; left: 240px; background: #fff; z-index: 2; }
+</style>
+
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-  <h4 class="mb-0 fw-bold"><i class="bi bi-clipboard2-check me-2 text-primary"></i>Реестр отчётности</h4>
-  <form method="post" action="/reports/generate" class="d-flex gap-2 align-items-center">
-    <select name="year" class="form-select form-select-sm" style="width:90px">
-      {% for y in years %}<option value="{{ y }}" {% if y|string == filters.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
-    </select>
-    <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-lightning-fill me-1"></i>Сгенерировать</button>
-  </form>
+  <h4 class="mb-0 fw-bold"><i class="bi bi-clipboard2-check me-2 text-primary"></i>Реестр отчётности — {{ year }}</h4>
+  <div class="d-flex gap-2 align-items-center">
+    <a href="/reports/list" class="btn btn-sm btn-outline-secondary"><i class="bi bi-list-ul me-1"></i>Список</a>
+    <form method="post" action="/reports/generate" class="d-flex gap-2">
+      <select name="year" class="form-select form-select-sm" style="width:90px">
+        {% for y in years %}<option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-success"><i class="bi bi-lightning-fill me-1"></i>Сгенерировать</button>
+    </form>
+  </div>
 </div>
 
 {# Фильтры #}
 <div class="card mb-3">
   <div class="card-body py-2">
     <form method="get" class="row g-2 align-items-end">
-      <div class="col-sm-1">
-        <label class="form-label mb-1 small fw-semibold">Год</label>
-        <select name="year" class="form-select form-select-sm">
-          {% for y in years %}<option value="{{ y }}" {% if y|string == filters.year %}selected{% endif %}>{{ y }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="col-sm-1">
-        <label class="form-label mb-1 small fw-semibold">Месяц</label>
-        <select name="month" class="form-select form-select-sm">
-          <option value="">Все</option>
-          {% for m, n in [(1,'Янв'),(2,'Фев'),(3,'Мар'),(4,'Апр'),(5,'Май'),(6,'Июн'),(7,'Июл'),(8,'Авг'),(9,'Сен'),(10,'Окт'),(11,'Ноя'),(12,'Дек')] %}
-          <option value="{{ m }}" {% if filters.month == m|string %}selected{% endif %}>{{ n }}</option>
-          {% endfor %}
-        </select>
-      </div>
       <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
         <select name="acc" class="form-select form-select-sm">
@@ -37,147 +45,116 @@
           {% for a in accountants %}<option value="{{ a.id }}" {% if filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
         </select>
       </div>
-      <div class="col-sm-3">
-        <label class="form-label mb-1 small fw-semibold">Компания</label>
-        <select name="company" class="form-select form-select-sm">
-          <option value="">Все компании</option>
-          {% for c in companies %}<option value="{{ c.id }}" {% if filters.company == c.id|string %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
-        </select>
-      </div>
       <div class="col-sm-2">
-        <label class="form-label mb-1 small fw-semibold">Статус</label>
-        <select name="status_f" class="form-select form-select-sm">
+        <label class="form-label mb-1 small fw-semibold">Тип орг.</label>
+        <select name="org_type" class="form-select form-select-sm">
           <option value="">Все</option>
-          <option value="pending" {% if filters.status=='pending' %}selected{% endif %}>Не сдано</option>
-          <option value="done"    {% if filters.status=='done'    %}selected{% endif %}>Сдано</option>
+          <option value="ООО" {% if filters.org_type=='ООО' %}selected{% endif %}>ООО</option>
+          <option value="ИП"  {% if filters.org_type=='ИП'  %}selected{% endif %}>ИП</option>
         </select>
       </div>
       <div class="col-sm-1 d-flex gap-1 align-items-end">
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
         <a href="/reports" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
       </div>
+      <div class="col-sm-6 d-flex align-items-end gap-3 small text-muted">
+        <span><span class="badge bg-success">✓</span> Сдано</span>
+        <span><span class="badge bg-danger">!</span> Просрочено</span>
+        <span><span class="badge bg-warning text-dark">⚠</span> 2 дня</span>
+        <span><span class="badge bg-secondary">·</span> Ожидание</span>
+        <span><span style="color:#ccc">—</span> Не применимо</span>
+      </div>
     </form>
   </div>
 </div>
 
 {# Карточки-итоги #}
-<div class="row g-3 mb-3">
-  <div class="col-6 col-md-2">
-    <div class="card stat-card blue p-3">
-      <div class="text-muted section-title">Всего</div>
-      <div class="fs-2 fw-bold text-primary">{{ all_count }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="card stat-card green p-3">
-      <div class="text-muted section-title">Сдано</div>
-      <div class="fs-2 fw-bold text-success">{{ done_cnt }}</div>
-      <div class="text-muted" style="font-size:.75rem">{{ pct_done }}%</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="card stat-card orange p-3">
-      <div class="text-muted section-title">Не сдано</div>
-      <div class="fs-2 fw-bold text-warning">{{ pending_cnt }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="card stat-card red p-3">
-      <div class="text-muted section-title">Просрочено</div>
-      <div class="fs-2 fw-bold text-danger">{{ overdue_cnt }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="card p-3" style="border-left:4px solid #fd7e14">
-      <div class="text-muted section-title">До 2 дней</div>
-      <div class="fs-2 fw-bold" style="color:#fd7e14">{{ critical_cnt }}</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="card p-3 bg-light">
-      <div class="text-muted section-title">Исполнение</div>
-      <div class="progress mt-2" style="height:20px">
-        <div class="progress-bar {% if pct_done >= 90 %}bg-success{% elif pct_done >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
-             style="width:{{ pct_done }}%">{{ pct_done }}%</div>
-      </div>
-    </div>
-  </div>
+<div class="row g-2 mb-3">
+  <div class="col-4 col-md-2"><div class="card stat-card blue p-2 text-center"><div class="text-muted section-title">Компаний</div><div class="fs-3 fw-bold text-primary">{{ company_rows|length }}</div></div></div>
+  <div class="col-4 col-md-2"><div class="card stat-card green p-2 text-center"><div class="text-muted section-title">Сдано</div><div class="fs-3 fw-bold text-success">{{ done_cnt }}</div></div></div>
+  <div class="col-4 col-md-2"><div class="card stat-card orange p-2 text-center"><div class="text-muted section-title">Ожидание</div><div class="fs-3 fw-bold text-warning">{{ pending_cnt }}</div></div></div>
+  <div class="col-4 col-md-2"><div class="card stat-card red p-2 text-center"><div class="text-muted section-title">Просрочено</div><div class="fs-3 fw-bold text-danger">{{ overdue_cnt }}</div></div></div>
+  <div class="col-4 col-md-2"><div class="card p-2 text-center" style="border-left:4px solid #fd7e14"><div class="text-muted section-title">2 дня</div><div class="fs-3 fw-bold" style="color:#fd7e14">{{ critical_cnt }}</div></div></div>
+  <div class="col-4 col-md-2"><div class="card p-2 text-center bg-light"><div class="text-muted section-title">Исполнение</div><div class="fs-5 fw-bold">{{ pct_done }}%</div></div></div>
 </div>
-
-{# Вкладки #}
-<ul class="nav nav-tabs mb-3">
-  <li class="nav-item"><a class="nav-link {% if not filters.tab %}active{% endif %}" href="/reports?year={{ filters.year }}{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
-    <i class="bi bi-list me-1"></i>Все <span class="badge bg-secondary">{{ all_count }}</span></a></li>
-  <li class="nav-item"><a class="nav-link {% if filters.tab=='unsent' %}active{% endif %}" href="/reports?year={{ filters.year }}&tab=unsent{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
-    <i class="bi bi-hourglass-split me-1 text-warning"></i>Не сданные <span class="badge bg-warning text-dark">{{ pending_cnt }}</span></a></li>
-  <li class="nav-item"><a class="nav-link {% if filters.tab=='critical' %}active{% endif %}" href="/reports?year={{ filters.year }}&tab=critical{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
-    <i class="bi bi-exclamation-triangle-fill me-1 text-danger"></i>Критичные <span class="badge bg-danger">{{ overdue_cnt + critical_cnt }}</span></a></li>
-</ul>
 
 {% if not has_data %}
-<div class="card">
-  <div class="p-5 text-center text-muted">
-    <i class="bi bi-calendar-x fs-2 text-secondary"></i>
-    <div class="mt-2 fw-semibold">Дедлайны за {{ filters.year }} год не сгенерированы</div>
-    <div class="mt-1 small">Нажмите кнопку <b>«Сгенерировать»</b> вверху страницы — система автоматически создаст все отчёты для всех компаний по их режимам налогообложения.</div>
-  </div>
+<div class="card p-5 text-center text-muted">
+  <i class="bi bi-calendar-x fs-2"></i>
+  <div class="mt-2 fw-semibold">Дедлайны не сгенерированы</div>
+  <div class="small mt-1">Нажмите «Сгенерировать» выше</div>
 </div>
 {% else %}
-
-{# Легенда #}
-<div class="d-flex gap-3 mb-2 flex-wrap small">
-  <span><span class="badge bg-danger">■</span> Просрочено</span>
-  <span><span class="badge" style="background:#fd7e14">■</span> Срок через 2 дня</span>
-  <span><span class="badge bg-warning text-dark">■</span> Срок через 7 дней</span>
-  <span><span class="badge bg-success">■</span> Сдано</span>
-  <span><span class="badge bg-light text-dark border">■</span> В работе</span>
-</div>
-
 <div class="card">
-  <div class="card-body p-0">
-    {% if deadlines %}
-    <table class="table table-hover mb-0 align-middle" style="font-size:.87rem">
-      <thead><tr>
-        <th>Срок</th><th>Компания</th><th>СНО</th><th>Отчёт</th><th>Тип</th><th>Период</th><th>Бухгалтер</th><th>Статус</th><th></th>
-      </tr></thead>
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-bordered rep-table mb-0">
+      <thead>
+        {# Строка 1: группировка по кварталам #}
+        <tr>
+          <th rowspan="2" class="sticky-left" style="min-width:120px">Компания</th>
+          <th rowspan="2" class="sticky-l2" style="min-width:120px">Бухгалтер</th>
+          <th rowspan="2" class="sticky-l3" style="min-width:70px">СНО</th>
+          {% for qnum, qlabel, cnt in quarter_groups %}
+          <th colspan="{{ cnt }}" class="q{{ qnum }}-hdr text-center">{{ qlabel }}</th>
+          {% endfor %}
+        </tr>
+        {# Строка 2: типы отчётов #}
+        <tr>
+          {% for col in col_defs %}
+          <th class="q{{ col.quarter_num }}-sub" title="{{ col.type }}" style="min-width:52px">{{ col.short }}</th>
+          {% endfor %}
+        </tr>
+        {# Строка 3: даты дедлайнов #}
+        <tr>
+          <td class="sticky-left text-muted" style="font-size:.7rem">Срок</td>
+          <td class="sticky-l2"></td>
+          <td class="sticky-l3"></td>
+          {% for col in col_defs %}
+          <td class="text-center text-muted" style="font-size:.65rem">{{ col.due_label }}</td>
+          {% endfor %}
+        </tr>
+      </thead>
       <tbody>
-      {% for d in deadlines %}
-      <tr class="
-        {% if d.urgency == 'overdue' %}table-danger
-        {% elif d.urgency == '2days' %}table-warning
-        {% elif d.urgency == '7days' %}table-light
-        {% elif d.urgency == 'done' %}table-success opacity-75
-        {% endif %}">
-        <td class="text-nowrap fw-semibold
-          {% if d.urgency == 'overdue' %}text-danger
-          {% elif d.urgency == '2days' %}text-warning
-          {% endif %}">{{ d.due_fmt }}</td>
-        <td><a href="/company/{{ d.company_id }}" class="text-decoration-none fw-semibold">{{ d.company_name }}</a></td>
-        <td><span class="badge rounded-pill {% if 'ОСН' in d.tax_system %}badge-osn{% elif 'УСН' in d.tax_system %}badge-usn{% elif 'ЕСХН' in d.tax_system %}badge-esxn{% else %}badge-psn{% endif %}">{{ d.tax_system }}</span></td>
-        <td>{{ d.report_name }}</td>
-        <td><span class="badge bg-light text-dark border small">{{ d.report_type }}</span></td>
-        <td class="text-muted small">{{ d.period or '—' }}</td>
-        <td class="text-muted small">{{ d.accountant_name or '—' }}</td>
-        <td>
-          {% if d.status == 'done' %}<span class="badge bg-success">✓ Сдано</span>
-          {% elif d.urgency == 'overdue' %}<span class="badge bg-danger">Просрочено</span>
-          {% elif d.urgency == '2days' %}<span class="badge" style="background:#fd7e14;color:#fff">⚠ 2 дня</span>
-          {% else %}<span class="badge bg-secondary">Ожидание</span>{% endif %}
+      {% for c in company_rows %}
+      {% set row = matrix[c.id|string] %}
+      <tr>
+        <td class="sticky-left fw-semibold">
+          <a href="/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a>
         </td>
-        <td>
-          {% if d.status != 'done' %}
-          <form method="post" action="/reports/{{ d.id }}/done" style="display:inline">
-            <button class="btn btn-xs btn-success" title="Отметить сданным"><i class="bi bi-check-lg"></i></button>
+        <td class="sticky-l2 text-muted small">{{ c.accountant_name or '—' }}</td>
+        <td class="sticky-l3">
+          <span class="badge rounded-pill {% if 'ОСН' in c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' in c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.65rem">{{ c.tax_system }}</span>
+        </td>
+        {% for col in col_defs %}
+        {% set cell = row.get(col.col_key) %}
+        {% if cell is none %}
+        <td class="rep-na">—</td>
+        {% elif cell.urgency == 'done' %}
+        <td class="rep-done" title="{{ cell.name }}">✓</td>
+        {% elif cell.urgency == 'overdue' %}
+        <td class="rep-overdue" title="{{ cell.name }} — просрочено до {{ cell.due }}">
+          <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
+            <button class="btn btn-xs btn-danger" title="Отметить сданным">!</button>
           </form>
-          {% endif %}
         </td>
+        {% elif cell.urgency == '2days' %}
+        <td class="rep-2days" title="{{ cell.name }} — срок {{ cell.due }}">
+          <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
+            <button class="btn btn-xs btn-warning" title="Отметить сданным">⚠</button>
+          </form>
+        </td>
+        {% else %}
+        <td class="rep-ok" title="{{ cell.name }} — срок {{ cell.due }}">
+          <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
+            <button class="btn btn-xs btn-outline-secondary" title="Отметить сданным">·</button>
+          </form>
+        </td>
+        {% endif %}
+        {% endfor %}
       </tr>
       {% endfor %}
       </tbody>
     </table>
-    {% else %}
-    <div class="p-5 text-center text-muted"><i class="bi bi-check2-all fs-2 text-success"></i><div class="mt-2">Отчётов по фильтру не найдено</div></div>
-    {% endif %}
   </div>
 </div>
 {% endif %}
