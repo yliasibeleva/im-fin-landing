@@ -123,14 +123,37 @@ async def dashboard(
         overdue.append(d)
 
     accountants = [dict(a) for a in accountants_raw]
+
+    # Группировка всех компаний по сотруднику (все роли)
+    all_companies_full = [dict(c) for c in companies_raw]  # без фильтра для сводки
+    staff_map: dict = {}
+    for c in all_companies_full:
+        def _add(aid, aname, role):
+            if not aid: return
+            key = aid
+            if key not in staff_map:
+                staff_map[key] = {'id': aid, 'name': aname, 'roles': {}}
+            if role not in staff_map[key]['roles']:
+                staff_map[key]['roles'][role] = []
+            staff_map[key]['roles'][role].append({'id': c['id'], 'name': c['name'], 'tax': c.get('tax_system','')})
+        _add(c.get('accountant_id'),         c.get('accountant_name'),         'Бухгалтер')
+        _add(c.get('payroll_accountant_id'),  c.get('payroll_accountant_name'), 'Зарплатник')
+        _add(c.get('operator_id'),            c.get('operator_name'),           'Операционист')
+        _add(c.get('hr_accountant_id'),       c.get('hr_accountant_name'),      'Кадры')
+
+    staff_summary = sorted(staff_map.values(), key=lambda x: x['name'] or '')
+    for s in staff_summary:
+        s['total'] = sum(len(v) for v in s['roles'].values())
+
     return templates.TemplateResponse(
         request=request,
         name='dashboard.html',
         context={
-            'companies':   companies,
-            'upcoming':    upcoming,
-            'overdue':     overdue,
-            'accountants': accountants,
+            'companies':      companies,
+            'upcoming':       upcoming,
+            'overdue':        overdue,
+            'accountants':    accountants,
+            'staff_summary':  staff_summary,
             'today':       today.strftime('%d.%m.%Y'),
             'co_filters':  {'q': q or '', 'acc': acc or '', 'op': op or '', 'tax': tax or '', 'emp': emp or '', 'mil': mil or ''},
             'stats': {
