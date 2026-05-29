@@ -4,53 +4,42 @@
 {# ══ СВОДКА ПО СОТРУДНИКАМ ═══════════════════════════════════════════════════ #}
 {% if staff_summary %}
 <div class="card mb-4">
-  <div class="card-header bg-light d-flex justify-content-between align-items-center">
-    <span class="fw-semibold"><i class="bi bi-people-fill me-2 text-primary"></i>Закрепление компаний по сотрудникам</span>
-    <button class="btn btn-xs btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#staffBlock">
-      <i class="bi bi-chevron-down"></i>
-    </button>
+  <div class="card-header bg-light fw-semibold">
+    <i class="bi bi-people-fill me-2 text-primary"></i>Закрепление компаний по сотрудникам
   </div>
-  <div class="show" id="staffBlock">
-    <div class="card-body p-0">
-      <table class="table table-sm table-hover mb-0 align-top" style="font-size:.87rem">
-        <thead>
-          <tr>
-            <th style="width:180px">Сотрудник</th>
-            <th style="width:110px">Роль</th>
-            <th style="width:60px" class="text-center">Компаний</th>
-            <th>Список компаний</th>
-          </tr>
-        </thead>
-        <tbody>
-        {% for s in staff_summary %}
-          {% set role_colors = {'Бухгалтер':'primary','Зарплатник':'success','Операционист':'warning','Кадры':'info'} %}
-          {% set first = true %}
-          {% for role, cos in s.roles.items() %}
-          <tr {% if first %}class="border-top border-2"{% endif %}>
-            {% if first %}
-            <td rowspan="{{ s.roles|length }}" class="fw-semibold align-middle">
-              {{ s.name }}
-              <div class="text-muted small">{{ s.total }} компаний</div>
-            </td>
-            {% endif %}
-            <td class="align-middle">
-              <span class="badge bg-{{ role_colors.get(role,'secondary') }}">{{ role }}</span>
-            </td>
-            <td class="text-center align-middle fw-semibold">{{ cos|length }}</td>
-            <td class="align-middle" style="line-height:1.6">
-              {% for c in cos | sort(attribute='name') %}
-              <a href="/company/{{ c.id }}" class="text-decoration-none me-2 text-dark small">
-                <span class="badge rounded-pill {% if 'ОСН' in c.tax %}badge-osn{% elif 'УСН' in c.tax %}badge-usn{% elif 'ЕСХН' in c.tax %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.65rem">{{ c.tax }}</span>{{ c.name }}{% if not loop.last %},{% endif %}
-              </a>
-              {% endfor %}
-            </td>
-          </tr>
-          {% set first = false %}
-          {% endfor %}
+  <div class="card-body p-0" style="overflow-x:auto">
+    <table class="table table-sm table-hover mb-0 align-middle" style="font-size:.86rem">
+      <thead>
+        <tr>
+          <th style="min-width:160px">Сотрудник</th>
+          <th class="text-center" style="width:60px">Всего</th>
+          <th style="min-width:220px"><span class="badge bg-primary me-1">●</span>Бухгалтер</th>
+          <th style="min-width:220px"><span class="badge bg-success me-1">●</span>Зарплатник</th>
+          <th style="min-width:220px"><span class="badge bg-warning text-dark me-1">●</span>Операционист</th>
+          <th style="min-width:220px"><span class="badge bg-info text-dark me-1">●</span>Кадры</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for s in staff_summary %}
+      <tr>
+        <td class="fw-semibold">{{ s.name }}</td>
+        <td class="text-center fw-bold text-primary">{{ s.total }}</td>
+        {% for role in ['Бухгалтер','Зарплатник','Операционист','Кадры'] %}
+        <td style="max-width:250px">
+          {% if role in s.roles %}
+            <span class="text-muted small me-1">{{ s.roles[role]|length }}</span>
+            {% for c in s.roles[role]|sort(attribute='name') %}
+              <a href="/company/{{ c.id }}" class="text-decoration-none text-dark small">{{ c.name }}</a>{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
         {% endfor %}
-        </tbody>
-      </table>
-    </div>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 {% endif %}
