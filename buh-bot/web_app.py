@@ -92,7 +92,12 @@ async def dashboard(
     # Применяем фильтры таблицы компаний
     if q:
         ql = q.lower()
-        companies = [c for c in companies if ql in c['name'].lower()]
+        companies = [c for c in companies if
+            ql in c['name'].lower() or
+            ql in (c.get('accountant_name') or '').lower() or
+            ql in (c.get('operator_name') or '').lower() or
+            ql in (c.get('payroll_accountant_name') or '').lower() or
+            ql in (c.get('hr_accountant_name') or '').lower()]
     if acc:
         companies = [c for c in companies if str(c.get('accountant_id') or '') == acc]
     if op:
@@ -246,6 +251,7 @@ async def company_edit(
     company_id: int,
     request: Request,
     _=Depends(require_auth),
+    name: str = Form(...),
     tax_system: str = Form(...),
     org_type: str = Form(...),
     has_employees: str = Form('0'),
@@ -257,6 +263,7 @@ async def company_edit(
 ):
     await asyncio.to_thread(
         db.update_company, company_id,
+        name=name,
         tax_system=tax_system,
         org_type=org_type,
         has_employees=int(has_employees == '1'),
@@ -267,6 +274,97 @@ async def company_edit(
         hr_accountant_id=int(hr_accountant_id) if hr_accountant_id else None,
     )
     return RedirectResponse(f'/company/{company_id}', status_code=303)
+
+
+# ─── Отчётность ───────────────────────────────────────────────────────────────
+
+@app.get('/reports', response_class=HTMLResponse)
+async def reports_page(
+    request: Request, _=Depends(require_auth),
+    year: Optional[str] = None,
+    month: Optional[str] = None,
+    acc: Optional[str] = None,
+    company: Optional[str] = None,
+    status_f: Optional[str] = None,
+    tab: Optional[str] = None,
+):
+    import datetime as _dt
+    today = date.today()
+    yr = int(year) if year else today.year
+    mo = int(month) if month else None
+
+    accountants_raw = await asyncio.to_thread(db.get_all_accountants)
+    companies_raw   = await asyncio.to_thread(db.get_all_companies)
+    deadlines_raw   = await asyncio.to_thread(
+        db.get_all_deadlines_full, yr, mo,
+        int(acc) if acc else None,
+        int(company) if company else None,
+        status_f or None,
+    )
+
+    today_iso = today.isoformat()
+    in2 = (today + _dt.timedelta(days=2)).isoformat()
+    in7 = (today + _dt.timedelta(days=7)).isoformat()
+
+    deadlines = []
+    for dl in deadlines_raw:
+        d = dict(dl)
+        d['due_fmt'] = fmt_date(d['due_date'])
+        due = d['due_date']
+        if d['status'] == 'done':
+            d['urgency'] = 'done'
+        elif due < today_iso:
+            d['urgency'] = 'overdue'
+        elif due <= in2:
+            d['urgency'] = '2days'
+        elif due <= in7:
+            d['urgency'] = '7days'
+        else:
+            d['urgency'] = 'ok'
+        deadlines.append(d)
+
+    show = deadlines
+    if tab == 'unsent':
+        show = [d for d in deadlines if d['status'] != 'done']
+    elif tab == 'overdue':
+        show = [d for d in deadlines if d['urgency'] == 'overdue']
+    elif tab == 'critical':
+        show = [d for d in deadlines if d['urgency'] in ('overdue', '2days')]
+
+    total       = len(deadlines)
+    done_cnt    = sum(1 for d in deadlines if d['status'] == 'done')
+    overdue_cnt = sum(1 for d in deadlines if d['urgency'] == 'overdue')
+    critical_cnt= sum(1 for d in deadlines if d['urgency'] == '2days')
+
+    return templates.TemplateResponse(request=request, name='reports.html', context={
+        'deadlines':    show,
+        'all_count':    total,
+        'done_cnt':     done_cnt,
+        'pending_cnt':  total - done_cnt,
+        'overdue_cnt':  overdue_cnt,
+        'critical_cnt': critical_cnt,
+        'pct_done':     round(done_cnt / total * 100) if total else 0,
+        'has_data':     total > 0,
+        'accountants':  [dict(a) for a in accountants_raw],
+        'companies':    [dict(c) for c in companies_raw],
+        'today':        today.strftime('%d.%m.%Y'),
+        'today_iso':    today_iso,
+        'years':        list(range(today.year - 1, today.year + 2)),
+        'filters':      {'year': str(yr), 'month': month or '', 'acc': acc or '',
+                         'company': company or '', 'status': status_f or '', 'tab': tab or ''},
+    })
+
+
+@app.post('/reports/generate')
+async def reports_generate(_=Depends(require_auth), year: int = Form(...)):
+    await asyncio.to_thread(db.generate_deadlines_for_all, year)
+    return RedirectResponse(f'/reports?year={year}&tab=unsent', status_code=303)
+
+
+@app.post('/reports/{deadline_id}/done')
+async def report_done(deadline_id: int, _=Depends(require_auth)):
+    await asyncio.to_thread(db.mark_deadline_done, deadline_id)
+    return RedirectResponse('/reports', status_code=303)
 
 
 # ─── Дедлайны ─────────────────────────────────────────────────────────────────

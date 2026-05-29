@@ -340,6 +340,70 @@ def get_deadlines_7days() -> list:
         ).fetchall()
 
 
+def get_all_deadlines_full(year: int = None, month: int = None,
+                           accountant_id: int = None, company_id: int = None,
+                           status: str = None) -> list:
+    """Все дедлайны с фильтрами — для страницы Отчётности."""
+    today_year = date.today().year
+    y = year or today_year
+    with get_db() as conn:
+        q = """SELECT rd.*, c.name as company_name, c.tax_system,
+                      a.name as accountant_name
+               FROM report_deadlines rd
+               JOIN companies c ON rd.company_id = c.id
+               LEFT JOIN accountants a ON c.accountant_id = a.id
+               WHERE c.is_active = 1
+                 AND substr(rd.due_date, 1, 4) = ?"""
+        params: list = [str(y)]
+        if month:
+            q += " AND substr(rd.due_date, 6, 2) = ?"
+            params.append(f'{month:02d}')
+        if accountant_id:
+            q += " AND c.accountant_id = ?"
+            params.append(accountant_id)
+        if company_id:
+            q += " AND rd.company_id = ?"
+            params.append(company_id)
+        if status:
+            q += " AND rd.status = ?"
+            params.append(status)
+        q += " ORDER BY rd.due_date, c.name"
+        return conn.execute(q, params).fetchall()
+
+
+def generate_deadlines_for_all(year: int = None) -> int:
+    """Генерирует дедлайны для всех активных компаний (если ещё нет за этот год)."""
+    from calendar_data import generate_deadlines
+    y = year or date.today().year
+    with get_db() as conn:
+        companies = conn.execute(
+            "SELECT id, tax_system, org_type, has_employees, has_military, has_stats_reporting "
+            "FROM companies WHERE is_active=1"
+        ).fetchall()
+        total = 0
+        for c in companies:
+            exists = conn.execute(
+                "SELECT 1 FROM report_deadlines WHERE company_id=? AND substr(due_date,1,4)=?",
+                (c['id'], str(y))
+            ).fetchone()
+            if exists:
+                continue
+            rows = generate_deadlines(
+                c['id'], c['tax_system'], c['org_type'],
+                bool(c['has_employees']), bool(c['has_military']),
+                bool(c['has_stats_reporting']), year=y
+            )
+            if rows:
+                conn.executemany(
+                    """INSERT INTO report_deadlines
+                       (company_id, report_name, report_type, due_date, period)
+                       VALUES (:company_id, :report_name, :report_type, :due_date, :period)""",
+                    rows
+                )
+                total += len(rows)
+        return total
+
+
 def get_overdue_deadlines() -> list:
     today = date.today().isoformat()
     with get_db() as conn:
