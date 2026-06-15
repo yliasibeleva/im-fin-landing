@@ -10,11 +10,14 @@
   .rep-2days   { background: #fff3cd !important; color: #856404; text-align: center; }
   .rep-ok      { background: #fff;               color: #aaa;    text-align: center; }
   .rep-na      { background: #f8f9fa;             color: #ddd;    text-align: center; }
-  .rep-btn     { border: none; background: none; font-size: .8rem; cursor: pointer; padding: 0; line-height: 1; }
-  .q2-hdr { background: #cfe2ff !important; }
-  .q3-hdr { background: #d1f0e8 !important; }
-  .q4-hdr { background: #fde8d0 !important; }
-  .m-hdr  { background: #e8d5f5 !important; }
+  .rep-btn     { border: none; background: none; cursor: pointer; padding: 1px 3px; line-height: 1; border-radius: 3px; }
+  .rep-btn:hover { opacity: .7; }
+  .hdr-q1  { background: #cfe2ff !important; }
+  .hdr-q2  { background: #d1f0e8 !important; }
+  .hdr-q3  { background: #fde8d0 !important; }
+  .hdr-q4  { background: #e2d9f3 !important; }
+  .hdr-yr  { background: #f0f0f0 !important; }
+  .hdr-m   { background: #e8d5f5 !important; }
   .sticky-left { position: sticky; left: 0; z-index: 2; background: #fff; box-shadow: 2px 0 4px rgba(0,0,0,.06); min-width: 130px; }
   .sticky-l2   { position: sticky; left: 130px; z-index: 2; background: #fff; min-width: 110px; }
   .sticky-l3   { position: sticky; left: 240px; z-index: 2; background: #fff; min-width: 70px; }
@@ -57,12 +60,13 @@
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
         <a href="/reports" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
       </div>
-      <div class="col d-flex align-items-end gap-3 small text-muted flex-wrap">
-        <span><span class="badge bg-success">✓</span> Сдано</span>
-        <span><span class="badge bg-danger">!</span> Просрочено</span>
-        <span><span class="badge bg-warning text-dark">⚠</span> 2 дня</span>
-        <span><span class="badge bg-secondary">·</span> Ожидание</span>
-        <span style="color:#ddd">—</span><span class="text-muted">Не применимо</span>
+      <div class="col d-flex align-items-end gap-3 small flex-wrap">
+        <span class="text-success fw-semibold">✓ Сдано</span>
+        <span class="text-danger">! Просрочено</span>
+        <span style="color:#856404">⚠ 2 дня</span>
+        <span class="text-muted">· Ожидание</span>
+        <span class="text-muted">— Не применимо</span>
+        <span class="text-muted fst-italic">(нажмите символ для смены статуса)</span>
       </div>
     </form>
   </div>
@@ -86,52 +90,55 @@
 </div>
 {% else %}
 
-{# ══ КВАРТАЛЬНАЯ МАТРИЦА ══════════════════════════════════════════════════════ #}
-{% if q_col_defs %}
-<div class="fw-bold text-secondary section-title mb-2 mt-1"><i class="bi bi-calendar3 me-1"></i>ДЕКЛАРАЦИИ И КВАРТАЛЬНЫЕ ОТЧЁТЫ</div>
+{# ══ ЕДИНАЯ МАТРИЦА ══════════════════════════════════════════════════════════ #}
 <div class="card mb-4">
   <div class="card-body p-0 hscroll">
     <table class="table rep-table mb-0">
       <thead>
+        {# Строка 1: группы по отчётному периоду #}
         <tr>
           <th rowspan="3" class="sticky-left">Компания</th>
           <th rowspan="3" class="sticky-l2">Бухгалтер</th>
           <th rowspan="3" class="sticky-l3">СНО</th>
-          {% for qnum, qlabel, cnt in quarter_groups %}
-          <th colspan="{{ cnt }}" class="q{{ qnum }}-hdr">{{ qlabel }}</th>
+          {% for grp_id, grp_label, grp_cnt, grp_sec in header_groups %}
+          <th colspan="{{ grp_cnt }}" class="hdr-{{ grp_id if grp_sec == 'q' else 'm' }}">{{ grp_label }}</th>
           {% endfor %}
         </tr>
+        {# Строка 2: краткое название отчёта #}
         <tr>
-          {% for col in q_col_defs %}
-          <th class="q{{ col.quarter_num }}-hdr" title="{{ col.type }}">{{ col.short }}</th>
+          {% for col in all_col_defs %}
+          <th class="hdr-{{ col.pg if col.section == 'q' else 'm' }}" title="{{ col.type }}">{{ col.short }}</th>
           {% endfor %}
         </tr>
+        {# Строка 3: дата сдачи #}
         <tr>
-          {% for col in q_col_defs %}
-          <th class="q{{ col.quarter_num }}-hdr" style="font-weight:normal;color:#888;font-size:.68rem">{{ col.due_label }}</th>
+          {% for col in all_col_defs %}
+          <th class="hdr-{{ col.pg if col.section == 'q' else 'm' }}" style="font-weight:normal;color:#888;font-size:.68rem">{{ col.due_label }}</th>
           {% endfor %}
         </tr>
       </thead>
       <tbody>
       {% for c in company_rows %}
-      {% set row = q_matrix[c.id|string] %}
+      {% set row = matrix[c.id|string] %}
       <tr>
         <td class="sticky-left fw-semibold"><a href="/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a></td>
         <td class="sticky-l2 text-muted small">{{ c.accountant_name or '—' }}</td>
         <td class="sticky-l3"><span class="badge rounded-pill {% if 'ОСН' in c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' in c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.63rem">{{ c.tax_system }}</span></td>
-        {% for col in q_col_defs %}
+        {% for col in all_col_defs %}
         {% set cell = row.get(col.col_key) %}
         {% if cell is none %}
           <td class="rep-na">—</td>
         {% elif cell.urgency == 'done' %}
-          <td class="rep-done" title="✓ {{ cell.name }}">
-            <span>✓</span>
+          <td class="rep-done" title="{{ cell.name }} — сдано">
+            <form method="post" action="/reports/{{ cell.id }}/undone" style="display:inline">
+              <button type="submit" class="rep-btn text-success fw-bold" title="Сдано — нажать чтобы отменить">✓</button>
+            </form>
           </td>
         {% else %}
           <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} — срок {{ cell.due }}">
             <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
               <button type="submit" class="rep-btn" title="Отметить сданным">
-                {% if cell.urgency == 'overdue' %}!{% elif cell.urgency == '2days' %}⚠{% else %}·{% endif %}
+                {% if cell.urgency == 'overdue' %}<span class="text-danger fw-bold">!</span>{% elif cell.urgency == '2days' %}<span style="color:#856404">⚠</span>{% else %}<span class="text-muted">·</span>{% endif %}
               </button>
             </form>
           </td>
@@ -143,64 +150,6 @@
     </table>
   </div>
 </div>
-{% endif %}
-
-{# ══ ЕЖЕМЕСЯЧНАЯ МАТРИЦА ═════════════════════════════════════════════════════ #}
-{% if m_col_defs and m_companies %}
-<div class="fw-bold text-secondary section-title mb-2"><i class="bi bi-calendar-month me-1"></i>ЕЖЕМЕСЯЧНЫЕ ОТЧЁТЫ (перс. сведения, платёж НДС, страховые взносы)</div>
-<div class="card mb-4">
-  <div class="card-body p-0 hscroll">
-    <table class="table rep-table mb-0">
-      <thead>
-        <tr>
-          <th rowspan="3" class="sticky-left">Компания</th>
-          <th rowspan="3" class="sticky-l2">Бухгалтер</th>
-          <th rowspan="3" class="sticky-l3">СНО</th>
-          {% for mo, mlabel, cnt in m_month_groups %}
-          <th colspan="{{ cnt }}" class="m-hdr">{{ mlabel }}</th>
-          {% endfor %}
-        </tr>
-        <tr>
-          {% for col in m_col_defs %}
-          <th class="m-hdr" title="{{ col.type }}">{{ col.short }}</th>
-          {% endfor %}
-        </tr>
-        <tr>
-          {% for col in m_col_defs %}
-          <th class="m-hdr" style="font-weight:normal;color:#888;font-size:.68rem">{{ col.due_label }}</th>
-          {% endfor %}
-        </tr>
-      </thead>
-      <tbody>
-      {% for c in m_companies %}
-      {% set row = m_matrix[c.id|string] %}
-      <tr>
-        <td class="sticky-left fw-semibold"><a href="/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a></td>
-        <td class="sticky-l2 text-muted small">{{ c.accountant_name or '—' }}</td>
-        <td class="sticky-l3"><span class="badge rounded-pill {% if 'ОСН' in c.tax_system %}badge-osn{% elif 'УСН' in c.tax_system %}badge-usn{% elif 'ЕСХН' in c.tax_system %}badge-esxn{% else %}badge-psn{% endif %}" style="font-size:.63rem">{{ c.tax_system }}</span></td>
-        {% for col in m_col_defs %}
-        {% set cell = row.get(col.col_key) %}
-        {% if cell is none %}
-          <td class="rep-na">—</td>
-        {% elif cell.urgency == 'done' %}
-          <td class="rep-done" title="✓ {{ cell.name }}"><span>✓</span></td>
-        {% else %}
-          <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} — срок {{ cell.due }}">
-            <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
-              <button type="submit" class="rep-btn" title="Сдано">
-                {% if cell.urgency == 'overdue' %}!{% elif cell.urgency == '2days' %}⚠{% else %}·{% endif %}
-              </button>
-            </form>
-          </td>
-        {% endif %}
-        {% endfor %}
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
-{% endif %}
 
 {% endif %}
 {% endblock %}

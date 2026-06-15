@@ -32,6 +32,20 @@
         </select>
       </div>
       <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Зарплатник</label>
+        <select name="zp" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for a in accountants %}<option value="{{ a.id }}" {% if co_filters.zp == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Кадры</label>
+        <select name="hr" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for a in accountants %}<option value="{{ a.id }}" {% if co_filters.hr == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">СНО</label>
         <select name="tax" class="form-select form-select-sm">
           <option value="">Все</option>
