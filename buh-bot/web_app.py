@@ -366,6 +366,7 @@ async def reports_page(
     year: Optional[str] = None,
     acc: Optional[str] = None,
     org_type: Optional[str] = None,
+    st: Optional[str] = None,
 ):
     from datetime import timedelta
     today     = date.today()
@@ -509,6 +510,18 @@ async def reports_page(
                 row[col['col_key']] = _build_cell(mi[key]) if key in mi else None
         matrix[str(cid)] = row
 
+    # ── Фильтр по статусу ────────────────────────────────────────────────────
+    if st == 'pending':
+        companies = [c for c in companies
+                     if any(v and v['status'] != 'done'
+                            for v in matrix[str(c['id'])].values())]
+        matrix = {str(c['id']): matrix[str(c['id'])] for c in companies}
+    elif st == 'done':
+        companies = [c for c in companies
+                     if all(v is None or v['status'] == 'done'
+                            for v in matrix[str(c['id'])].values())]
+        matrix = {str(c['id']): matrix[str(c['id'])] for c in companies}
+
     # ── Счётчики ─────────────────────────────────────────────────────────────
     all_cells = [v for row in matrix.values() for v in row.values() if v]
     done_cnt    = sum(1 for v in all_cells if v['status'] == 'done')
@@ -537,7 +550,7 @@ async def reports_page(
         'accountants':    [dict(a) for a in accountants_raw],
         'year':           yr,
         'years':          list(range(today.year - 1, today.year + 2)),
-        'filters':        {'acc': acc or '', 'org_type': org_type or ''},
+        'filters':        {'acc': acc or '', 'org_type': org_type or '', 'st': st or ''},
     })
 
 

@@ -56,6 +56,14 @@
           <option value="ИП"  {% if filters.org_type=='ИП'  %}selected{% endif %}>ИП</option>
         </select>
       </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Статус</label>
+        <select name="st" class="form-select form-select-sm">
+          <option value="">Все компании</option>
+          <option value="pending" {% if filters.st=='pending' %}selected{% endif %}>Есть несданные</option>
+          <option value="done"    {% if filters.st=='done'    %}selected{% endif %}>Все сдано</option>
+        </select>
+      </div>
       <div class="col-sm-1 d-flex gap-1 align-items-end">
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
         <a href="/reports" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
