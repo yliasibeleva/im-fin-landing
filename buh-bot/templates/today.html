@@ -153,7 +153,7 @@
   </div>
   <div class="card-body p-0">
   <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
-    <thead><tr><th>Задача</th><th>Кому</th><th>Компания</th><th>Срок</th><th>Статус</th></tr></thead>
+    <thead><tr><th>Задача</th><th>Кому</th><th>Компания</th><th>Срок</th><th>Статус</th><th></th></tr></thead>
     <tbody>
     {% for t in tasks_overdue %}
     <tr style="background:#fdf5ff">
@@ -167,6 +167,12 @@
       <td>
         {% if t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
         {% else %}<span class="badge bg-danger">Просрочено</span>{% endif %}
+      </td>
+      <td>
+        <form method="post" action="/tasks/{{ t.id }}/delete" onsubmit="return confirm('Удалить задачу?')">
+          <input type="hidden" name="back" value="/today">
+          <button type="submit" class="btn btn-xs btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+        </form>
       </td>
     </tr>
     {% endfor %}
@@ -182,6 +188,12 @@
       <td>
         {% if t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
         {% else %}<span class="badge bg-warning text-dark">Срок сегодня</span>{% endif %}
+      </td>
+      <td>
+        <form method="post" action="/tasks/{{ t.id }}/delete" onsubmit="return confirm('Удалить задачу?')">
+          <input type="hidden" name="back" value="/today">
+          <button type="submit" class="btn btn-xs btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+        </form>
       </td>
     </tr>
     {% endfor %}
@@ -200,17 +212,23 @@
   </div>
   <div class="card-body p-0">
   <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
-    <thead><tr><th>Задача</th><th>Кому</th><th>Компания</th><th>Статус</th></tr></thead>
+    <thead><tr><th>Задача</th><th>Кому</th><th>Компания</th><th>Статус</th><th></th></tr></thead>
     <tbody>
     {% for t in tasks_no_date %}
     <tr>
-      <td class="fw-semibold">{{ t.title }}</td>
+      <td class="fw-semibold">{{ t.title }}{% if t.description %}<div class="text-muted small">{{ t.description[:60] }}</div>{% endif %}</td>
       <td class="text-muted small">{{ t.accountant_name or '—' }}</td>
       <td class="text-muted small">{{ t.company_name or '—' }}</td>
       <td>
         {% if t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
         {% elif t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
         {% else %}<span class="badge bg-secondary">В работе</span>{% endif %}
+      </td>
+      <td>
+        <form method="post" action="/tasks/{{ t.id }}/delete" onsubmit="return confirm('Удалить задачу?')">
+          <input type="hidden" name="back" value="/today">
+          <button type="submit" class="btn btn-xs btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+        </form>
       </td>
     </tr>
     {% endfor %}

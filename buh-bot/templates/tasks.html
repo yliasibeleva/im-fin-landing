@@ -140,6 +140,9 @@
             <button class="btn btn-xs btn-success" title="Выполнено"><i class="bi bi-check-lg"></i></button>
           </form>
           {% endif %}
+          <form method="post" action="/tasks/{{ t.id }}/delete" onsubmit="return confirm('Удалить задачу?')" style="display:inline">
+            <button class="btn btn-xs btn-outline-danger" title="Удалить"><i class="bi bi-trash"></i></button>
+          </form>
         </td>
       </tr>
       {% endfor %}

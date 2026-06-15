@@ -999,6 +999,13 @@ async def task_add(
     return RedirectResponse('/tasks', status_code=303)
 
 
+@app.post('/tasks/{task_id}/delete')
+async def task_delete(task_id: int, _=Depends(require_auth),
+                      back: Optional[str] = Form(None)):
+    await asyncio.to_thread(db.delete_task, task_id)
+    return RedirectResponse(back or '/tasks', status_code=303)
+
+
 @app.post('/tasks/{task_id}/accept')
 async def task_accept(task_id: int, _=Depends(require_auth)):
     await asyncio.to_thread(db.mark_task_accepted, task_id)

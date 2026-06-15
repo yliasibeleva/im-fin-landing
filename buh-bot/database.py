@@ -777,6 +777,11 @@ def mark_task_accepted(task_id: int) -> None:
         )
 
 
+def delete_task(task_id: int) -> None:
+    with get_db() as conn:
+        conn.execute("DELETE FROM tasks WHERE id=?", (task_id,))
+
+
 def mark_task_done(task_id: int) -> None:
     now = datetime.now().isoformat()
     with get_db() as conn:
