@@ -66,6 +66,54 @@
   </div>
 </div>
 
+{# Контроль по бухгалтерам #}
+<div class="card mb-3">
+  <div class="card-header bg-light d-flex justify-content-between align-items-center py-2"
+       data-bs-toggle="collapse" data-bs-target="#ctrlPanel" style="cursor:pointer">
+    <span class="fw-semibold"><i class="bi bi-table me-2 text-primary"></i>Контроль по бухгалтерам</span>
+    <i class="bi bi-chevron-down"></i>
+  </div>
+  <div id="ctrlPanel" class="collapse show">
+    <div class="card-body p-0">
+      <table class="table table-sm table-hover mb-0 align-middle" style="font-size:.83rem">
+        <thead>
+          <tr>
+            <th>Бухгалтер</th>
+            <th class="text-center">Всего</th>
+            <th class="text-center" style="color:#155724">Сдано</th>
+            <th class="text-center" style="color:#856404">Ожидание</th>
+            <th class="text-center" style="color:#084298">При наличии</th>
+            <th class="text-center" style="color:#6c757d">Не сдаём</th>
+            <th class="text-center">% сдано</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for r in ctrl_rows %}
+        <tr>
+          <td class="fw-semibold">{{ r.name }}</td>
+          <td class="text-center fw-bold">{{ r.total }}</td>
+          <td class="text-center"><span class="badge badge-done">{{ r.done }}</span></td>
+          <td class="text-center"><span class="badge badge-pending">{{ r.pending }}</span></td>
+          <td class="text-center"><span class="badge badge-conditional">{{ r.conditional }}</span></td>
+          <td class="text-center"><span class="badge badge-excluded">{{ r.excluded }}</span></td>
+          <td class="text-center">
+            {% set active = r.total - r.excluded %}
+            {% if active > 0 %}
+              {% set pct = ((r.done / active) * 100)|int %}
+              <div class="progress" style="height:14px;min-width:60px">
+                <div class="progress-bar {% if pct == 100 %}bg-success{% elif pct >= 50 %}bg-warning{% else %}bg-danger{% endif %}"
+                     style="width:{{ pct }}%">{{ pct }}%</div>
+              </div>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 {# Таблица #}
 <div class="card">
   <div class="card-body p-0">

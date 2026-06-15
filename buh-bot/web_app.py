@@ -1043,8 +1043,19 @@ async def stat_page(
             ).fetchall()
 
     rows_raw = await asyncio.to_thread(_load)
-    rows = [dict(r) for r in rows_raw]
+    all_rows = [dict(r) for r in rows_raw]
 
+    # Контроль по бухгалтерам (всегда по всем данным, без фильтра)
+    ctrl_map: dict = {}
+    for r in all_rows:
+        an = r['accountant_name'] or '—'
+        if an not in ctrl_map:
+            ctrl_map[an] = {'name': an, 'total': 0, 'done': 0, 'pending': 0, 'conditional': 0, 'excluded': 0}
+        ctrl_map[an]['total'] += 1
+        ctrl_map[an][r['status']] = ctrl_map[an].get(r['status'], 0) + 1
+    ctrl_rows = sorted(ctrl_map.values(), key=lambda x: x['name'])
+
+    rows = list(all_rows)
     if q:
         ql = q.lower()
         rows = [r for r in rows if ql in r['company_name'].lower()
@@ -1057,8 +1068,8 @@ async def stat_page(
     if form:
         rows = [r for r in rows if form.lower() in (r['form_name'] or '').lower()]
 
-    all_acc = sorted({r['accountant_name'] for r in rows if r['accountant_name']})
-    all_forms = sorted({r['form_name'] for r in rows if r['form_name']})
+    all_acc   = sorted({r['accountant_name'] for r in all_rows if r['accountant_name']})
+    all_forms = sorted({r['form_name'] for r in all_rows if r['form_name']})
 
     cnt = {
         'total': len(rows),
@@ -1069,7 +1080,7 @@ async def stat_page(
     }
 
     return templates.TemplateResponse(request=request, name='stat.html', context={
-        'rows': rows, 'cnt': cnt,
+        'rows': rows, 'cnt': cnt, 'ctrl_rows': ctrl_rows,
         'all_acc': all_acc, 'all_forms': all_forms,
         'filters': {'q': q or '', 'acc': acc or '', 'st': st or '', 'form': form or ''},
         'today': date.today().strftime('%d.%m.%Y'),
@@ -1323,6 +1334,103 @@ async def _do_export_excel():
         buf,
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': f'attachment; filename="{filename_ascii}"'},
+    )
+
+
+@app.get('/export/companies')
+async def export_companies(
+    _=Depends(require_auth),
+    q: Optional[str] = None,
+    acc: Optional[str] = None,
+    op: Optional[str] = None,
+    zp: Optional[str] = None,
+    hr: Optional[str] = None,
+    tax: Optional[str] = None,
+    emp: Optional[str] = None,
+    mil: Optional[str] = None,
+):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+
+    companies_raw = await asyncio.to_thread(db.get_all_companies)
+    companies = [dict(c) for c in companies_raw]
+
+    if q:
+        ql = q.lower()
+        companies = [c for c in companies if
+            ql in c['name'].lower() or
+            ql in (c.get('accountant_name') or '').lower() or
+            ql in (c.get('operator_name') or '').lower() or
+            ql in (c.get('payroll_accountant_name') or '').lower() or
+            ql in (c.get('hr_accountant_name') or '').lower()]
+    if acc:
+        companies = [c for c in companies if str(c.get('accountant_id') or '') == acc]
+    if op:
+        companies = [c for c in companies if str(c.get('operator_id') or '') == op]
+    if zp:
+        companies = [c for c in companies if str(c.get('payroll_accountant_id') or '') == zp]
+    if hr:
+        companies = [c for c in companies if str(c.get('hr_accountant_id') or '') == hr]
+    if tax:
+        companies = [c for c in companies if c.get('tax_system') == tax]
+    if emp in ('0', '1'):
+        companies = [c for c in companies if str(c.get('has_employees', 0)) == emp]
+    if mil in ('0', '1'):
+        companies = [c for c in companies if str(c.get('has_military', 0)) == mil]
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Компании'
+
+    hdr_font  = Font(bold=True, color='FFFFFF', size=10)
+    hdr_fill  = PatternFill('solid', fgColor='1A3A5C')
+    hdr_align = Alignment(horizontal='center', vertical='center')
+    headers   = ['№', 'Название', 'ИНН', 'СНО', 'Тип', 'Бухгалтер', 'Операционист', 'Зарплатник', 'Кадры', 'Сотрудники', 'Воинский учёт']
+    widths    = [5, 34, 14, 14, 6, 22, 22, 22, 22, 12, 14]
+
+    for ci, (h, w) in enumerate(zip(headers, widths), 1):
+        cell = ws.cell(1, ci, h)
+        cell.font = hdr_font
+        cell.fill = hdr_fill
+        cell.alignment = hdr_align
+        ws.column_dimensions[get_column_letter(ci)].width = w
+
+    fill_a = PatternFill('solid', fgColor='EFF4FB')
+    fill_b = PatternFill('solid', fgColor='DDEAF8')
+
+    for ri, c in enumerate(companies, 2):
+        row_fill = fill_a if ri % 2 == 0 else fill_b
+        vals = [
+            ri - 1,
+            c['name'],
+            c.get('inn') or '',
+            c.get('tax_system') or '',
+            c.get('org_type') or '',
+            c.get('accountant_name') or '',
+            c.get('operator_name') or '',
+            c.get('payroll_accountant_name') or '',
+            c.get('hr_accountant_name') or '',
+            'Да' if c.get('has_employees') else 'Нет',
+            'Да' if c.get('has_military') else 'Нет',
+        ]
+        for ci2, val in enumerate(vals, 1):
+            cell = ws.cell(ri, ci2, val)
+            cell.fill = row_fill
+            cell.alignment = Alignment(vertical='center')
+
+    ws.auto_filter.ref = f'A1:K{len(companies)+1}'
+    ws.freeze_panes = 'A2'
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    today = date.today()
+    fname = f'companies_{today.strftime("%Y-%m-%d")}.xlsx'
+    return StreamingResponse(
+        buf,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename="{fname}"'},
     )
 
 

@@ -70,9 +70,13 @@
       </div>
       <div class="col-sm-1 d-flex gap-1 align-items-end">
         <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill me-1"></i>Найти</button>
+        <a href="/" class="btn btn-sm btn-outline-secondary" title="Сброс"><i class="bi bi-x"></i></a>
       </div>
-      <div class="col-sm-1 d-flex align-items-end">
-        <a href="/" class="btn btn-sm btn-outline-secondary w-100">Сброс</a>
+      <div class="col-sm-2 d-flex align-items-end">
+        <a href="/export/companies?q={{ co_filters.q }}&acc={{ co_filters.acc }}&op={{ co_filters.op }}&zp={{ co_filters.zp }}&hr={{ co_filters.hr }}&tax={{ co_filters.tax }}&emp={{ co_filters.emp }}&mil={{ co_filters.mil }}"
+           class="btn btn-sm btn-success w-100">
+          <i class="bi bi-file-earmark-excel me-1"></i>Сохранить в Excel
+        </a>
       </div>
     </form>
   </div>
