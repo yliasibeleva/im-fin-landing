@@ -624,6 +624,49 @@ def get_overdue_deadlines() -> list:
         ).fetchall()
 
 
+def get_today_summary(days_ahead: int = 3) -> dict:
+    """Всё срочное: просрочено, сегодня, ближайшие N дней + задачи."""
+    from datetime import timedelta
+    today = date.today()
+    today_s  = today.isoformat()
+    soon_s   = (today + timedelta(days=days_ahead)).isoformat()
+    with get_db() as conn:
+        deadlines = conn.execute(
+            """SELECT rd.*, c.name as company_name, c.org_type,
+                      a1.name as accountant_name,
+                      a2.name as payroll_name
+               FROM report_deadlines rd
+               JOIN companies c ON rd.company_id = c.id
+               LEFT JOIN accountants a1 ON c.accountant_id = a1.id
+               LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
+               WHERE rd.status != 'done' AND rd.due_date <= ? AND c.is_active=1
+               ORDER BY rd.due_date, c.name""",
+            (soon_s,)
+        ).fetchall()
+        tasks = conn.execute(
+            """SELECT t.*, c.name as company_name, a.name as accountant_name,
+                      cb.name as creator_name
+               FROM tasks t
+               LEFT JOIN companies c ON t.company_id = c.id
+               LEFT JOIN accountants a ON t.accountant_id = a.id
+               LEFT JOIN accountants cb ON t.created_by_id = cb.id
+               WHERE t.status != 'done' AND (t.due_date <= ? OR t.due_date IS NULL)
+               ORDER BY t.due_date NULLS LAST, t.priority""",
+            (today_s,)
+        ).fetchall()
+        stat = conn.execute(
+            """SELECT * FROM stat_reports
+               WHERE year=2026 AND status IN ('pending','conditional')
+               ORDER BY company_name""",
+        ).fetchall()
+    return {
+        'deadlines': [dict(r) for r in deadlines],
+        'tasks':     [dict(r) for r in tasks],
+        'stat':      [dict(r) for r in stat],
+        'today_s':   today_s,
+    }
+
+
 def mark_deadline_done(deadline_id: int) -> None:
     now = datetime.now().isoformat()
     with get_db() as conn:

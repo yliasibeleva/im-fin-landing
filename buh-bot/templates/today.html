@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+{% block title %}Сегодня — Империя Финанс{% endblock %}
+{% block content %}
+<style>
+  .fire { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.6} }
+  .section-badge { font-size:.7rem; vertical-align:middle }
+  .dl-btn { border:none;background:none;cursor:pointer;padding:0 }
+</style>
+
+<div class="d-flex align-items-center mb-3 gap-3">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-lightning-charge-fill me-2" style="color:#ffd700"></i>Сводка на сегодня — {{ today }}</h4>
+  <button onclick="location.reload()" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-clockwise me-1"></i>Обновить</button>
+</div>
+
+{# ── Счётчики ── #}
+<div class="row g-2 mb-4">
+  <div class="col-6 col-md-2">
+    <div class="card p-3 text-center" style="border-left:4px solid #dc3545;background:{% if cnt.overdue %}#fff5f5{% else %}#fff{% endif %}">
+      <div class="section-title text-danger">Просрочено</div>
+      <div class="fs-1 fw-bold text-danger {% if cnt.overdue %}fire{% endif %}">{{ cnt.overdue }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card p-3 text-center" style="border-left:4px solid #fd7e14;background:{% if cnt.today %}#fffbf0{% else %}#fff{% endif %}">
+      <div class="section-title text-warning">Срок сегодня</div>
+      <div class="fs-1 fw-bold text-warning">{{ cnt.today }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card p-3 text-center" style="border-left:4px solid #6c757d">
+      <div class="section-title">Ближайшие 3 дня</div>
+      <div class="fs-1 fw-bold text-secondary">{{ cnt.soon }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card p-3 text-center" style="border-left:4px solid #6f42c1;background:{% if cnt.tasks %}#fdf5ff{% else %}#fff{% endif %}">
+      <div class="section-title" style="color:#6f42c1">Задачи горят</div>
+      <div class="fs-1 fw-bold" style="color:#6f42c1">{{ cnt.tasks }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card p-3 text-center" style="border-left:4px solid #0d6efd">
+      <div class="section-title text-primary">Статотчётность ожидает</div>
+      <div class="fs-1 fw-bold text-primary">{{ cnt.stat }}</div>
+    </div>
+  </div>
+</div>
+
+{% if cnt.overdue == 0 and cnt.today == 0 and cnt.tasks == 0 %}
+<div class="alert alert-success fs-5 text-center py-4">
+  <i class="bi bi-check-circle-fill me-2"></i><strong>Отлично! Всё в порядке.</strong><br>
+  <span class="fs-6 text-muted">Нет просроченных отчётов и горящих задач на сегодня.</span>
+</div>
+{% endif %}
+
+{# ── ПРОСРОЧЕННЫЕ ДЕДЛАЙНЫ ── #}
+{% if overdue %}
+<div class="card mb-3 border-danger">
+  <div class="card-header fw-bold text-danger" style="background:#fff5f5">
+    <i class="bi bi-exclamation-triangle-fill me-2 fire"></i>ПРОСРОЧЕНО — {{ overdue|length }} отчётов
+  </div>
+  <div class="card-body p-0">
+  <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
+    <thead><tr><th>Компания</th><th>Отчёт</th><th>Тип</th><th>Бухгалтер</th><th>Срок</th><th>Дней назад</th><th>Действие</th></tr></thead>
+    <tbody>
+    {% for d in overdue %}
+    <tr style="background:#fff5f5">
+      <td class="fw-semibold"><a href="/company/{{ d.company_id }}" class="text-decoration-none">{{ d.company_name }}</a></td>
+      <td>{{ d.report_name }}</td>
+      <td><span class="badge bg-light text-dark border section-badge">{{ d.report_type }}</span></td>
+      <td class="text-muted small">{{ d.accountant_name or d.payroll_name or '—' }}</td>
+      <td class="text-danger fw-bold">{{ d.due_fmt }}</td>
+      <td><span class="badge bg-danger">{{ d.days_left }} дн.</span></td>
+      <td>
+        <form method="post" action="/reports/{{ d.id }}/done" style="display:inline">
+          <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── СЕГОДНЯ ── #}
+{% if due_today %}
+<div class="card mb-3" style="border-left:4px solid #fd7e14">
+  <div class="card-header fw-bold text-warning" style="background:#fffbf0">
+    <i class="bi bi-clock-fill me-2"></i>СРОК СЕГОДНЯ — {{ due_today|length }} отчётов
+  </div>
+  <div class="card-body p-0">
+  <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
+    <thead><tr><th>Компания</th><th>Отчёт</th><th>Тип</th><th>Бухгалтер</th><th>Действие</th></tr></thead>
+    <tbody>
+    {% for d in due_today %}
+    <tr style="background:#fffbf0">
+      <td class="fw-semibold"><a href="/company/{{ d.company_id }}" class="text-decoration-none">{{ d.company_name }}</a></td>
+      <td>{{ d.report_name }}</td>
+      <td><span class="badge bg-light text-dark border section-badge">{{ d.report_type }}</span></td>
+      <td class="text-muted small">{{ d.accountant_name or d.payroll_name or '—' }}</td>
+      <td>
+        <form method="post" action="/reports/{{ d.id }}/done" style="display:inline">
+          <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── БЛИЖАЙШИЕ 3 ДНЯ ── #}
+{% if soon %}
+<div class="card mb-3">
+  <div class="card-header fw-semibold" style="background:#f1f4f9">
+    <i class="bi bi-calendar-event me-2 text-secondary"></i>Ближайшие 3 дня — {{ soon|length }} отчётов
+  </div>
+  <div class="card-body p-0">
+  <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
+    <thead><tr><th>Компания</th><th>Отчёт</th><th>Тип</th><th>Бухгалтер</th><th>Срок</th><th>Дней</th><th>Действие</th></tr></thead>
+    <tbody>
+    {% for d in soon %}
+    <tr>
+      <td class="fw-semibold"><a href="/company/{{ d.company_id }}" class="text-decoration-none">{{ d.company_name }}</a></td>
+      <td>{{ d.report_name }}</td>
+      <td><span class="badge bg-light text-dark border section-badge">{{ d.report_type }}</span></td>
+      <td class="text-muted small">{{ d.accountant_name or d.payroll_name or '—' }}</td>
+      <td>{{ d.due_fmt }}</td>
+      <td class="text-muted">{{ d.days_left }}</td>
+      <td>
+        <form method="post" action="/reports/{{ d.id }}/done" style="display:inline">
+          <button type="submit" class="btn btn-xs btn-outline-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── ЗАДАЧИ ── #}
+{% if tasks_overdue or tasks_today %}
+<div class="card mb-3" style="border-left:4px solid #6f42c1;background:#fdf5ff">
+  <div class="card-header fw-bold" style="color:#6f42c1;background:#f3e8ff">
+    <i class="bi bi-list-task me-2"></i>ГОРЯЩИЕ ЗАДАЧИ — {{ (tasks_overdue|length) + (tasks_today|length) }}
+  </div>
+  <div class="card-body p-0">
+  <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
+    <thead><tr><th>Задача</th><th>Кому</th><th>Компания</th><th>Срок</th><th>Статус</th></tr></thead>
+    <tbody>
+    {% for t in tasks_overdue %}
+    <tr style="background:#fdf5ff">
+      <td>
+        <div class="fw-semibold">{{ t.title }}</div>
+        {% if t.creator_name %}<div class="text-muted small">от: {{ t.creator_name }}</div>{% endif %}
+      </td>
+      <td class="text-muted small">{{ t.accountant_name or '—' }}</td>
+      <td class="text-muted small">{{ t.company_name or '—' }}</td>
+      <td class="text-danger fw-bold">{{ t.due_fmt }}</td>
+      <td>
+        {% if t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
+        {% else %}<span class="badge bg-danger">Просрочено</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    {% for t in tasks_today %}
+    <tr style="background:#fdf5ff">
+      <td>
+        <div class="fw-semibold">{{ t.title }}</div>
+        {% if t.creator_name %}<div class="text-muted small">от: {{ t.creator_name }}</div>{% endif %}
+      </td>
+      <td class="text-muted small">{{ t.accountant_name or '—' }}</td>
+      <td class="text-muted small">{{ t.company_name or '—' }}</td>
+      <td class="text-warning fw-bold">Сегодня</td>
+      <td>
+        {% if t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
+        {% else %}<span class="badge bg-warning text-dark">Срок сегодня</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── ЗАДАЧИ БЕЗ СРОКА ── #}
+{% if tasks_no_date %}
+<div class="card mb-3">
+  <div class="card-header fw-semibold" style="background:#f1f4f9">
+    <i class="bi bi-pin-angle me-2 text-muted"></i>Активные задачи без срока ({{ tasks_no_date|length }})
+    <span class="text-muted fw-normal small ms-2">— не горят, но не забыть</span>
+  </div>
+  <div class="card-body p-0">
+  <table class="table table-hover mb-0 align-middle" style="font-size:.84rem">
+    <thead><tr><th>Задача</th><th>Кому</th><th>Компания</th><th>Статус</th></tr></thead>
+    <tbody>
+    {% for t in tasks_no_date %}
+    <tr>
+      <td class="fw-semibold">{{ t.title }}</td>
+      <td class="text-muted small">{{ t.accountant_name or '—' }}</td>
+      <td class="text-muted small">{{ t.company_name or '—' }}</td>
+      <td>
+        {% if t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
+        {% elif t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
+        {% else %}<span class="badge bg-secondary">В работе</span>{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</div>
+{% endif %}
+
+{# ── СТАТОТЧЁТНОСТЬ ── #}
+{% if stat_pending %}
+<div class="card mb-3">
+  <div class="card-header fw-semibold" style="background:#f1f4f9">
+    <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Статотчётность — ожидает сдачи ({{ stat_pending|length }})
+    <a href="/stat" class="btn btn-xs btn-outline-primary ms-2">Открыть</a>
+  </div>
+  <div class="card-body py-2 px-3 text-muted small">
+    Перейдите в раздел <a href="/stat">Статотчётность</a> для детального просмотра и отметки.
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

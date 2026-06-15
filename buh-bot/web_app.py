@@ -179,6 +179,64 @@ MONTHS_RU = ['', 'январь', 'февраль', 'март', 'апрель', '
              'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь']
 
 
+@app.get('/today', response_class=HTMLResponse)
+async def today_page(request: Request, _=Depends(require_auth)):
+    from datetime import timedelta
+    today = date.today()
+    data  = await asyncio.to_thread(db.get_today_summary, 3)
+
+    deadlines = data['deadlines']
+    today_s   = data['today_s']
+
+    overdue  = [d for d in deadlines if d['due_date'] < today_s]
+    due_today = [d for d in deadlines if d['due_date'] == today_s]
+    soon      = [d for d in deadlines if d['due_date'] > today_s]
+
+    for lst in (overdue, due_today, soon):
+        for d in lst:
+            d['due_fmt']   = fmt_date(d['due_date'])
+            d['days_left'] = days_left(d['due_date'])
+
+    tasks = data['tasks']
+    for t in tasks:
+        t['due_fmt']   = fmt_date(t.get('due_date', ''))
+        t['days_left'] = days_left(t.get('due_date', ''))
+    tasks_overdue = [t for t in tasks if t.get('due_date') and t['due_date'] < today_s]
+    tasks_today   = [t for t in tasks if t.get('due_date') == today_s]
+    tasks_no_date = [t for t in tasks if not t.get('due_date')]
+
+    return templates.TemplateResponse(request=request, name='today.html', context={
+        'overdue':      overdue,
+        'due_today':    due_today,
+        'soon':         soon,
+        'tasks_overdue': tasks_overdue,
+        'tasks_today':  tasks_today,
+        'tasks_no_date': tasks_no_date,
+        'stat_pending': data['stat'],
+        'today':        today.strftime('%d.%m.%Y'),
+        'today_iso':    today_s,
+        'cnt': {
+            'overdue':  len(overdue),
+            'today':    len(due_today),
+            'soon':     len(soon),
+            'tasks':    len(tasks_overdue) + len(tasks_today),
+            'stat':     len(data['stat']),
+        },
+    })
+
+
+@app.get('/invite/{token}', response_class=HTMLResponse)
+async def invite_page(token: str, request: Request):
+    acc = await _get_portal_accountant(token)
+    base_url = str(request.base_url).rstrip('/')
+    portal_url = f'{base_url}/portal/{token}'
+    return templates.TemplateResponse(request=request, name='invite.html', context={
+        'acc': acc,
+        'portal_url': portal_url,
+        'today': date.today().strftime('%d.%m.%Y'),
+    })
+
+
 @app.get('/company/{company_id}', response_class=HTMLResponse)
 async def company_page(company_id: int, request: Request, _=Depends(require_auth)):
     company_raw = await asyncio.to_thread(db.get_company, company_id)
