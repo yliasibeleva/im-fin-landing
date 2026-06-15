@@ -404,6 +404,32 @@ def generate_deadlines_for_all(year: int = None) -> int:
         return total
 
 
+def generate_deadlines_for_company(company_id: int, year: int = None) -> int:
+    """Генерирует дедлайны для одной компании за указанный год."""
+    from calendar_data import generate_deadlines
+    y = year or date.today().year
+    with get_db() as conn:
+        c = conn.execute(
+            "SELECT id, tax_system, org_type, has_employees, has_military, has_stats_reporting "
+            "FROM companies WHERE id=?", (company_id,)
+        ).fetchone()
+        if not c:
+            return 0
+        rows = generate_deadlines(
+            c['id'], c['tax_system'], c['org_type'],
+            bool(c['has_employees']), bool(c['has_military']),
+            bool(c['has_stats_reporting']), year=y
+        )
+        if rows:
+            conn.executemany(
+                """INSERT INTO report_deadlines
+                   (company_id, report_name, report_type, due_date, period)
+                   VALUES (:company_id, :report_name, :report_type, :due_date, :period)""",
+                rows
+            )
+        return len(rows)
+
+
 def get_overdue_deadlines() -> list:
     today = date.today().isoformat()
     with get_db() as conn:

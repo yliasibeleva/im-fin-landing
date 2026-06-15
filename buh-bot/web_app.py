@@ -241,13 +241,14 @@ async def company_add(
     has_military: str = Form('0'),
     accountant_id: Optional[str] = Form(None),
 ):
-    await asyncio.to_thread(
+    company_id = await asyncio.to_thread(
         db.add_company,
         name=name, inn=None, tax_system=tax_system, org_type=org_type,
         has_employees=int(has_employees == '1'),
         has_military=int(has_military == '1'),
         accountant_id=int(accountant_id) if accountant_id else None,
     )
+    await asyncio.to_thread(db.generate_deadlines_for_company, company_id)
     await tg(f'🏢 <b>Добавлена новая компания</b>\n{org_type} «{name}» · {tax_system}')
     return RedirectResponse('/', status_code=303)
 
