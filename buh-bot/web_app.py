@@ -28,6 +28,7 @@ import database as db
 load_dotenv()
 
 db.init_db()  # применяем миграции при старте
+db.ensure_accountant_tokens()  # генерируем токены для доступа бухгалтеров
 
 WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'admin')
 WEB_PORT     = int(os.getenv('WEB_PORT', '8000'))
@@ -703,9 +704,14 @@ async def work_add(
 @app.get('/accountants', response_class=HTMLResponse)
 async def accountants_page(request: Request, _=Depends(require_auth)):
     accs = await asyncio.to_thread(db.get_all_accountants)
+    base_url = str(request.base_url).rstrip('/')
     return templates.TemplateResponse(
         request=request, name='accountants.html',
-        context={'accountants': [dict(a) for a in accs], 'today': date.today().strftime('%d.%m.%Y')}
+        context={
+            'accountants': [dict(a) for a in accs],
+            'today': date.today().strftime('%d.%m.%Y'),
+            'base_url': base_url,
+        }
     )
 
 
@@ -1432,6 +1438,99 @@ async def export_companies(
         media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         headers={'Content-Disposition': f'attachment; filename="{fname}"'},
     )
+
+
+# ─── Портал бухгалтера (без Basic Auth — по токену в URL) ────────────────────
+
+async def _get_portal_accountant(token: str):
+    acc = await asyncio.to_thread(db.get_accountant_by_token, token)
+    if not acc:
+        raise HTTPException(status_code=404, detail='Ссылка недействительна')
+    return dict(acc)
+
+
+@app.get('/portal/{token}', response_class=HTMLResponse)
+async def portal_page(token: str, request: Request):
+    acc = await _get_portal_accountant(token)
+    today = date.today()
+
+    companies_raw = await asyncio.to_thread(db.get_companies_for_portal, acc['id'])
+    companies = [dict(c) for c in companies_raw]
+    company_ids = [c['id'] for c in companies]
+
+    deadlines_raw = await asyncio.to_thread(db.get_portal_deadlines, company_ids, 60)
+    deadlines = []
+    for d in deadlines_raw:
+        dd = dict(d)
+        dd['due_fmt']   = fmt_date(dd['due_date'])
+        dd['days_left'] = days_left(dd['due_date'])
+        deadlines.append(dd)
+
+    stat_raw = await asyncio.to_thread(db.get_portal_stat, acc['name'])
+    stat_rows = [dict(r) for r in stat_raw]
+    stat_pending = [r for r in stat_rows if r['status'] in ('pending', 'conditional')]
+
+    overdue  = [d for d in deadlines if d['days_left'] is not None and d['days_left'] < 0]
+    today_dl = [d for d in deadlines if d['days_left'] == 0]
+    upcoming = [d for d in deadlines if d['days_left'] is not None and d['days_left'] > 0]
+
+    return templates.TemplateResponse(request=request, name='portal.html', context={
+        'acc': acc,
+        'token': token,
+        'companies': companies,
+        'overdue': overdue,
+        'today_dl': today_dl,
+        'upcoming': upcoming,
+        'stat_pending': stat_pending,
+        'today': today.strftime('%d.%m.%Y'),
+        'cnt': {
+            'companies': len(companies),
+            'overdue': len(overdue),
+            'today': len(today_dl),
+            'upcoming': len(upcoming),
+            'stat': len(stat_pending),
+        },
+    })
+
+
+@app.post('/portal/{token}/deadline/{dl_id}/done')
+async def portal_deadline_done(token: str, dl_id: int):
+    await _get_portal_accountant(token)
+    def _upd():
+        with db.get_db() as conn:
+            conn.execute("UPDATE report_deadlines SET status='done', completed_at=datetime('now') WHERE id=?", (dl_id,))
+    await asyncio.to_thread(_upd)
+    return RedirectResponse(f'/portal/{token}', status_code=303)
+
+
+@app.post('/portal/{token}/deadline/{dl_id}/undone')
+async def portal_deadline_undone(token: str, dl_id: int):
+    await _get_portal_accountant(token)
+    def _upd():
+        with db.get_db() as conn:
+            conn.execute("UPDATE report_deadlines SET status='pending', completed_at=NULL WHERE id=?", (dl_id,))
+    await asyncio.to_thread(_upd)
+    return RedirectResponse(f'/portal/{token}', status_code=303)
+
+
+@app.post('/portal/{token}/stat/{row_id}/done')
+async def portal_stat_done(token: str, row_id: int):
+    await _get_portal_accountant(token)
+    def _upd():
+        with db.get_db() as conn:
+            conn.execute("UPDATE stat_reports SET status='done' WHERE id=?", (row_id,))
+    await asyncio.to_thread(_upd)
+    return RedirectResponse(f'/portal/{token}#stat', status_code=303)
+
+
+@app.post('/portal/{token}/stat/{row_id}/undone')
+async def portal_stat_undone(token: str, row_id: int):
+    await _get_portal_accountant(token)
+    def _upd():
+        with db.get_db() as conn:
+            conn.execute("UPDATE stat_reports SET status='pending' WHERE id=?", (row_id,))
+    await asyncio.to_thread(_upd)
+    return RedirectResponse(f'/portal/{token}#stat', status_code=303)
 
 
 @app.get('/tg/test')

@@ -132,6 +132,7 @@ def _migrate(conn) -> None:
         "ALTER TABLE companies ADD COLUMN description TEXT",
         "ALTER TABLE companies ADD COLUMN has_stats_reporting INTEGER DEFAULT 0",
         "ALTER TABLE companies ADD COLUMN hr_accountant_id INTEGER REFERENCES accountants(id)",
+        "ALTER TABLE accountants ADD COLUMN access_token TEXT",
     ]
     for sql in migrations:
         try:
@@ -183,6 +184,80 @@ def get_accountant(accountant_id: int):
         return conn.execute(
             "SELECT * FROM accountants WHERE id = ?", (accountant_id,)
         ).fetchone()
+
+
+def get_accountant_by_token(token: str):
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT * FROM accountants WHERE access_token = ?", (token,)
+        ).fetchone()
+
+
+def ensure_accountant_tokens() -> None:
+    """Генерирует access_token для бухгалтеров у которых его нет."""
+    import secrets as _secrets
+    with get_db() as conn:
+        rows = conn.execute(
+            "SELECT id FROM accountants WHERE access_token IS NULL OR access_token = ''"
+        ).fetchall()
+        for r in rows:
+            token = _secrets.token_hex(16)
+            conn.execute("UPDATE accountants SET access_token=? WHERE id=?", (token, r['id']))
+
+
+def get_companies_for_portal(accountant_id: int) -> list:
+    """Компании где бухгалтер в любой роли."""
+    with get_db() as conn:
+        return conn.execute(
+            """SELECT c.*,
+                      a1.name as accountant_name,
+                      a2.name as payroll_accountant_name,
+                      a3.name as operator_name,
+                      a4.name as hr_accountant_name
+               FROM companies c
+               LEFT JOIN accountants a1 ON c.accountant_id = a1.id
+               LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
+               LEFT JOIN accountants a3 ON c.operator_id = a3.id
+               LEFT JOIN accountants a4 ON c.hr_accountant_id = a4.id
+               WHERE c.is_active = 1
+                 AND (c.accountant_id=? OR c.payroll_accountant_id=?
+                      OR c.operator_id=? OR c.hr_accountant_id=?)
+               ORDER BY c.name""",
+            (accountant_id, accountant_id, accountant_id, accountant_id)
+        ).fetchall()
+
+
+def get_portal_deadlines(company_ids: list, days_ahead: int = 60) -> list:
+    """Незакрытые дедлайны для списка компаний на ближайшие N дней."""
+    if not company_ids:
+        return []
+    today = date.today().isoformat()
+    future = date.today().replace(year=date.today().year + 1).isoformat()  # fallback
+    from datetime import timedelta
+    future = (date.today() + timedelta(days=days_ahead)).isoformat()
+    placeholders = ','.join('?' * len(company_ids))
+    with get_db() as conn:
+        return conn.execute(
+            f"""SELECT d.*, c.name as company_name, c.org_type, c.tax_system
+                FROM report_deadlines d
+                JOIN companies c ON d.company_id = c.id
+                WHERE d.company_id IN ({placeholders})
+                  AND d.status != 'done'
+                  AND d.due_date <= ?
+                ORDER BY d.due_date, c.name""",
+            (*company_ids, future)
+        ).fetchall()
+
+
+def get_portal_stat(accountant_name: str) -> list:
+    """Статотчётность для бухгалтера (по имени)."""
+    with get_db() as conn:
+        return conn.execute(
+            """SELECT * FROM stat_reports
+               WHERE year=2026 AND accountant_name=?
+               ORDER BY company_name, form_name""",
+            (accountant_name,)
+        ).fetchall()
 
 
 # ─── Компании ─────────────────────────────────────────────────────────────────

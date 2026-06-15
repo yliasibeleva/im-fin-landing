@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Портал — {{ acc.name }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body{background:#f4f6fb;font-size:.92rem}
+    .navbar{background:#1a3a5c!important}
+    .navbar-brand{font-weight:700;color:#fff!important}
+    .card{border:none;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .stat-card{border-left:4px solid}
+    .stat-card.blue{border-color:#0d6efd}.stat-card.green{border-color:#198754}
+    .stat-card.red{border-color:#dc3545}.stat-card.orange{border-color:#fd7e14}
+    .section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6c757d;margin-bottom:.5rem}
+    .table th{background:#f1f4f9;font-size:.82rem;text-transform:uppercase;letter-spacing:.4px}
+    .dl-overdue{background:#fff5f5}.dl-today{background:#fffbf0}
+    .badge-done{background:#d4edda;color:#155724}
+    .badge-pending{background:#fff3cd;color:#856404}
+    .badge-conditional{background:#cfe2ff;color:#084298}
+    .stat-btn{border:none;background:none;cursor:pointer;padding:0;line-height:1}
+    .btn-xs{padding:.15rem .5rem;font-size:.78rem}
+    .badge-ooo{background:#cfe2ff;color:#084298}.badge-ip{background:#f8d7da;color:#842029}
+    .badge-usn{background:#d1ecf1;color:#0c5460}.badge-osn{background:#fff3cd;color:#856404}
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/portal/{{ token }}">
+      <i class="bi bi-building-fill me-2"></i>Империя Финанс
+    </a>
+    <span class="navbar-text text-white-50">
+      <i class="bi bi-person-circle me-1"></i>{{ acc.name }}
+      <span class="ms-3"><i class="bi bi-calendar3 me-1"></i>{{ today }}</span>
+    </span>
+  </div>
+</nav>
+
+<div class="container-fluid px-4">
+
+{# Счётчики #}
+<div class="row g-2 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card blue p-3">
+      <div class="text-muted section-title">Моих компаний</div>
+      <div class="fs-2 fw-bold text-primary">{{ cnt.companies }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card red p-3">
+      <div class="text-muted section-title">Просрочено</div>
+      <div class="fs-2 fw-bold text-danger">{{ cnt.overdue }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card orange p-3">
+      <div class="text-muted section-title">Срок сегодня</div>
+      <div class="fs-2 fw-bold text-warning">{{ cnt.today }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card green p-3">
+      <div class="text-muted section-title">Предстоящих (60 дн.)</div>
+      <div class="fs-2 fw-bold text-success">{{ cnt.upcoming }}</div>
+    </div>
+  </div>
+</div>
+
+{# Дедлайны #}
+{% if cnt.overdue or cnt.today or cnt.upcoming %}
+<div class="card mb-4">
+  <div class="card-header bg-light fw-semibold">
+    <i class="bi bi-calendar-check me-2 text-primary"></i>Дедлайны по отчётности
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead>
+        <tr>
+          <th>Компания</th>
+          <th>Отчёт</th>
+          <th>Срок</th>
+          <th>Осталось</th>
+          <th style="min-width:100px">Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in overdue %}
+      <tr class="dl-overdue">
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td class="text-danger fw-bold">{{ d.due_fmt }}</td>
+        <td><span class="badge bg-danger">{{ d.days_left }} дн.</span></td>
+        <td>
+          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done" style="display:inline">
+            <button type="submit" class="stat-btn"><span class="badge badge-pending">· Сдать</span></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% for d in today_dl %}
+      <tr class="dl-today">
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td class="text-warning fw-bold">{{ d.due_fmt }}</td>
+        <td><span class="badge bg-warning text-dark">Сегодня</span></td>
+        <td>
+          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done" style="display:inline">
+            <button type="submit" class="stat-btn"><span class="badge badge-pending">· Сдать</span></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      {% for d in upcoming %}
+      <tr>
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td>{{ d.due_fmt }}</td>
+        <td class="text-muted">{{ d.days_left }} дн.</td>
+        <td>
+          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done" style="display:inline">
+            <button type="submit" class="stat-btn"><span class="badge badge-pending">· Сдать</span></button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-success mb-4">
+  <i class="bi bi-check-circle-fill me-2"></i>Все дедлайны в порядке — нет просроченных и предстоящих в ближайшие 60 дней.
+</div>
+{% endif %}
+
+{# Статотчётность #}
+{% if stat_pending %}
+<div class="card mb-4" id="stat">
+  <div class="card-header bg-light fw-semibold">
+    <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Статотчётность Росстат — ожидает сдачи ({{ stat_pending|length }})
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead>
+        <tr>
+          <th>Компания</th>
+          <th>Форма</th>
+          <th>Срок / описание</th>
+          <th>Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in stat_pending %}
+      <tr>
+        <td class="fw-semibold">{{ r.company_name }}</td>
+        <td><span class="badge bg-light text-dark border">{{ r.form_name or '—' }}</span></td>
+        <td class="text-muted small">{{ r.period_desc or '—' }}</td>
+        <td>
+          {% if r.status == 'conditional' %}
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done" style="display:inline">
+              <button type="submit" class="stat-btn"><span class="badge badge-conditional">При наличии — нажать если сдано</span></button>
+            </form>
+          {% else %}
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done" style="display:inline">
+              <button type="submit" class="stat-btn"><span class="badge badge-pending">· Не сдано</span></button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+{# Мои компании #}
+<div class="card mb-4">
+  <div class="card-header bg-light fw-semibold">
+    <i class="bi bi-building me-2 text-primary"></i>Мои компании ({{ companies|length }})
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead>
+        <tr>
+          <th>Тип</th>
+          <th>Компания</th>
+          <th>СНО</th>
+          <th>Моя роль</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for c in companies %}
+      <tr>
+        <td>
+          <span class="badge rounded-pill {% if 'ООО' in (c.org_type or '') %}badge-ooo{% else %}badge-ip{% endif %}" style="font-size:.65rem">
+            {{ c.org_type or '—' }}
+          </span>
+        </td>
+        <td class="fw-semibold">{{ c.name }}</td>
+        <td>
+          <span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% elif 'УСН' in (c.tax_system or '') %}badge-usn{% else %}badge-usn{% endif %}" style="font-size:.65rem">
+            {{ c.tax_system or '—' }}
+          </span>
+        </td>
+        <td class="text-muted small">
+          {% set roles = [] %}
+          {% if c.accountant_name == acc.name %}{% set _ = roles.append('Бухгалтер') %}{% endif %}
+          {% if c.payroll_accountant_name == acc.name %}{% set _ = roles.append('Зарплатник') %}{% endif %}
+          {% if c.operator_name == acc.name %}{% set _ = roles.append('Операционист') %}{% endif %}
+          {% if c.hr_accountant_name == acc.name %}{% set _ = roles.append('Кадры') %}{% endif %}
+          {{ roles|join(', ') or '—' }}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

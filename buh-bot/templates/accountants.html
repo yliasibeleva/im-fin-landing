@@ -1,6 +1,10 @@
 ﻿{% extends "base.html" %}
 {% block title %}Бухгалтеры — Империя Финанс{% endblock %}
 {% block content %}
+<style>
+.portal-link{font-size:.75rem;word-break:break-all;background:#f8f9fa;border-radius:6px;padding:4px 8px;border:1px solid #dee2e6;cursor:pointer}
+.portal-link:hover{background:#e9ecef}
+</style>
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0 fw-bold"><i class="bi bi-people-fill me-2 text-primary"></i>Бухгалтеры ({{ accountants|length }})</h4>
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAccModal"><i class="bi bi-person-plus-fill me-1"></i>Добавить</button>
@@ -27,6 +31,17 @@
         {% if a.tg %}<div class="mb-1"><i class="bi bi-telegram me-2 text-muted"></i>{{ a.tg }}</div>{% endif %}
         {% if a.max_user_id %}<div class="mb-1"><i class="bi bi-chat-dots me-2 text-muted"></i>Max ID: {{ a.max_user_id }}</div>{% endif %}
       </div>
+      {% if a.access_token %}
+      <div class="mt-2 border-top pt-2">
+        <div class="text-muted section-title mb-1"><i class="bi bi-link-45deg me-1"></i>Ссылка портала</div>
+        <div class="d-flex align-items-center gap-2">
+          <span class="portal-link flex-grow-1" id="link{{ a.id }}"
+                onclick="navigator.clipboard.writeText(this.textContent).then(()=>{this.style.background='#d4edda';setTimeout(()=>this.style.background='',1200)})">{{ base_url }}/portal/{{ a.access_token }}</span>
+          <a href="{{ base_url }}/portal/{{ a.access_token }}" target="_blank" class="btn btn-xs btn-outline-primary" title="Открыть"><i class="bi bi-box-arrow-up-right"></i></a>
+        </div>
+        <div class="text-muted" style="font-size:.7rem">Нажмите на ссылку чтобы скопировать</div>
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
