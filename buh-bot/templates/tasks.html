@@ -37,8 +37,9 @@
         <label class="form-label mb-1 small fw-semibold">Статус</label>
         <select name="status" class="form-select form-select-sm">
           <option value="">Все</option>
-          <option value="pending" {% if filters.status=='pending' %}selected{% endif %}>В работе</option>
-          <option value="done"    {% if filters.status=='done'    %}selected{% endif %}>Выполнено</option>
+          <option value="pending"  {% if filters.status=='pending'  %}selected{% endif %}>Новая</option>
+          <option value="accepted" {% if filters.status=='accepted' %}selected{% endif %}>Принято</option>
+          <option value="done"     {% if filters.status=='done'     %}selected{% endif %}>Выполнено</option>
         </select>
       </div>
       <div class="col-sm-1 d-flex gap-1 align-items-end">
@@ -59,8 +60,14 @@
   </div>
   <div class="col-6 col-md-3">
     <div class="card stat-card orange p-3">
-      <div class="text-muted section-title">В работе</div>
+      <div class="text-muted section-title">Новые</div>
       <div class="fs-2 fw-bold text-warning">{{ pending|length }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card p-3" style="border-left:4px solid #0dcaf0">
+      <div class="text-muted section-title">Принято в работу</div>
+      <div class="fs-2 fw-bold" style="color:#0dcaf0">{{ accepted|length }}</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
@@ -79,31 +86,35 @@
 
 {# Табы #}
 <ul class="nav nav-tabs mb-3">
-  <li class="nav-item"><a class="nav-link {% if not filters.status or filters.status=='pending' %}active{% endif %}"
-    href="/tasks?status=pending{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
-    <i class="bi bi-hourglass-split me-1"></i>В работе <span class="badge bg-warning text-dark">{{ pending|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link {% if filters.status=='pending' %}active{% endif %}"
+    href="/tasks?status=pending{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+    <i class="bi bi-exclamation-circle me-1"></i>Новые <span class="badge bg-warning text-dark">{{ pending|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link {% if filters.status=='accepted' %}active{% endif %}"
+    href="/tasks?status=accepted{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+    <i class="bi bi-hand-thumbs-up me-1"></i>Принято <span class="badge bg-info text-dark">{{ accepted|length }}</span></a></li>
   <li class="nav-item"><a class="nav-link {% if filters.status=='done' %}active{% endif %}"
-    href="/tasks?status=done{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.company %}&company={{ filters.company }}{% endif %}">
+    href="/tasks?status=done{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
     <i class="bi bi-check2-circle me-1"></i>Выполнено <span class="badge bg-success">{{ done|length }}</span></a></li>
-  <li class="nav-item"><a class="nav-link {% if filters.status=='' and not filters.acc and not filters.company %}active{% endif %}"
-    href="/tasks">
-    <i class="bi bi-list me-1"></i>Все <span class="badge bg-secondary">{{ tasks|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link {% if not filters.status %}active{% endif %}"
+    href="/tasks{% if filters.acc %}?acc={{ filters.acc }}{% endif %}">
+    <i class="bi bi-list me-1"></i>Все <span class="badge bg-secondary">{{ (pending|length) + (accepted|length) + (done|length) }}</span></a></li>
 </ul>
 
-{% set show_tasks = pending if (not filters.status or filters.status == 'pending') else (done if filters.status == 'done' else tasks) %}
+{% set show_tasks = tasks %}
 
 <div class="card">
   <div class="card-header bg-light fw-semibold"><i class="bi bi-table me-2"></i>Детализация ({{ show_tasks|length }})</div>
   <div class="card-body p-0">
     {% if show_tasks %}
     <table class="table table-hover mb-0 align-middle">
-      <thead><tr><th>Задача</th><th>Компания</th><th>Бухгалтер</th><th>Приоритет</th><th>Срок</th><th>Статус</th><th></th></tr></thead>
+      <thead><tr><th>Задача</th><th>Компания</th><th>Назначена</th><th>От кого</th><th>Приоритет</th><th>Срок</th><th>Статус</th><th></th></tr></thead>
       <tbody>
       {% for t in show_tasks %}
-      <tr>
+      <tr {% if t.status == 'pending' and t.creator_name %}class="table-warning"{% endif %}>
         <td class="fw-semibold">{{ t.title }}{% if t.description %}<div class="text-muted small">{{ t.description[:80] }}{% if t.description|length > 80 %}…{% endif %}</div>{% endif %}</td>
         <td><a href="/company/{{ t.company_id }}" class="text-decoration-none fw-semibold">{{ t.company_name or '—' }}</a></td>
         <td class="text-muted small">{{ t.accountant_name or '—' }}</td>
+        <td class="text-muted small">{{ t.creator_name or '—' }}</td>
         <td>
           {% if t.priority == 'high' %}<span class="badge bg-danger">🔴 Высокий</span>
           {% elif t.priority == 'low' %}<span class="badge bg-success">🟢 Низкий</span>
@@ -114,10 +125,16 @@
         </td>
         <td>
           {% if t.status == 'done' %}<span class="badge bg-success">✓ Готово</span>
+          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
           {% elif t.due_date and t.due_date < today_iso %}<span class="badge bg-danger">Просрочено</span>
-          {% else %}<span class="badge bg-warning text-dark">В работе</span>{% endif %}
+          {% else %}<span class="badge bg-warning text-dark">Новая</span>{% endif %}
         </td>
-        <td>
+        <td class="d-flex gap-1">
+          {% if t.status == 'pending' %}
+          <form method="post" action="/tasks/{{ t.id }}/accept" style="display:inline">
+            <button class="btn btn-xs btn-info text-dark" title="Принять"><i class="bi bi-hand-thumbs-up"></i></button>
+          </form>
+          {% endif %}
           {% if t.status != 'done' %}
           <form method="post" action="/tasks/{{ t.id }}/done" style="display:inline">
             <button class="btn btn-xs btn-success" title="Выполнено"><i class="bi bi-check-lg"></i></button>

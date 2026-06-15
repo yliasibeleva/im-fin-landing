@@ -157,37 +157,77 @@
 <div class="card mb-3" id="tasks">
   <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
     <span class="card-header-link" data-bs-toggle="collapse" data-bs-target="#secTasks" style="cursor:pointer">
-      <i class="bi bi-list-task me-2" style="color:#6f42c1"></i>Мои задачи ({{ cnt.tasks }})
+      <i class="bi bi-list-task me-2" style="color:#6f42c1"></i>Задачи
+      {% set incoming_new = tasks_pending | selectattr('is_incoming') | selectattr('status', 'equalto', 'pending') | list %}
+      {% if incoming_new %}<span class="badge bg-danger ms-1">{{ incoming_new|length }} новых</span>{% endif %}
     </span>
     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
-      <i class="bi bi-plus-lg me-1"></i>Добавить задачу
+      <i class="bi bi-plus-lg me-1"></i>Создать задачу
     </button>
   </div>
   <div id="secTasks" class="collapse show">
     <div class="card-body p-0">
-    {% if tasks_pending %}
+
+    {# Входящие — назначены мне другими #}
+    {% set incoming = tasks_pending | selectattr('is_incoming') | list %}
+    {% if incoming %}
+    <div class="px-3 pt-2 pb-1"><span class="section-title text-danger"><i class="bi bi-arrow-down-circle me-1"></i>Входящие от коллег ({{ incoming|length }})</span></div>
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead><tr><th>Приоритет</th><th>Задача</th><th>Компания</th><th>Срок</th><th>Действие</th></tr></thead>
+      <thead><tr><th>От кого</th><th>Задача</th><th>Компания</th><th>Срок</th><th>Статус</th><th>Действие</th></tr></thead>
       <tbody>
-      {% for t in tasks_pending %}
-      <tr class="priority-{{ t.priority or 'normal' }}">
-        <td>
-          {% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
-          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
-          {% else %}<span class="badge bg-warning text-dark">Обычный</span>{% endif %}
-        </td>
+      {% for t in incoming %}
+      <tr class="priority-{{ t.priority or 'normal' }} {% if t.status == 'pending' %}table-warning{% endif %}">
+        <td class="text-muted small fw-semibold">{{ t.creator_name or '—' }}</td>
         <td>
           <div class="fw-semibold">{{ t.title }}</div>
           {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
         </td>
         <td class="text-muted small">{{ t.company_name or '—' }}</td>
         <td>
-          {% if t.due_fmt != '—' %}
-            <span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">
-              {{ t.due_fmt }}
-            </span>
+          {% if t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>
           {% else %}—{% endif %}
         </td>
+        <td>
+          {% if t.status == 'pending' %}<span class="badge bg-danger">Новая</span>
+          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
+          {% endif %}
+        </td>
+        <td class="d-flex gap-1 flex-wrap">
+          {% if t.status == 'pending' %}
+          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/accept">
+            <button type="submit" class="btn btn-xs btn-info text-dark"><i class="bi bi-hand-thumbs-up me-1"></i>Принять</button>
+          </form>
+          {% endif %}
+          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
+            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {# Мои собственные задачи #}
+    {% set my_own = tasks_pending | rejectattr('is_incoming') | list %}
+    {% if my_own %}
+    <div class="px-3 pt-2 pb-1 {% if incoming %}border-top mt-1{% endif %}"><span class="section-title" style="color:#6f42c1"><i class="bi bi-person me-1"></i>Мои задачи ({{ my_own|length }})</span></div>
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead><tr><th>Задача</th><th>Компания</th><th>Приоритет</th><th>Срок</th><th>Действие</th></tr></thead>
+      <tbody>
+      {% for t in my_own %}
+      <tr class="priority-{{ t.priority or 'normal' }}">
+        <td>
+          <div class="fw-semibold">{{ t.title }}</div>
+          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        </td>
+        <td class="text-muted small">{{ t.company_name or '—' }}</td>
+        <td>
+          {% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
+          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
+          {% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}
+        </td>
+        <td>{% if t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>{% else %}—{% endif %}</td>
         <td>
           <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
             <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button>
@@ -197,7 +237,35 @@
       {% endfor %}
       </tbody>
     </table>
-    {% else %}
+    {% endif %}
+
+    {# Переданные коллегам #}
+    {% if tasks_outgoing %}
+    <div class="px-3 pt-2 pb-1 border-top mt-1"><span class="section-title text-primary"><i class="bi bi-arrow-up-circle me-1"></i>Переданные коллегам ({{ tasks_outgoing|length }})</span></div>
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead><tr><th>Кому</th><th>Задача</th><th>Компания</th><th>Срок</th><th>Статус</th></tr></thead>
+      <tbody>
+      {% for t in tasks_outgoing %}
+      <tr>
+        <td class="text-muted small fw-semibold">{{ t.accountant_name or '—' }}</td>
+        <td>
+          <div class="fw-semibold">{{ t.title }}</div>
+          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        </td>
+        <td class="text-muted small">{{ t.company_name or '—' }}</td>
+        <td class="text-muted small">{{ t.due_fmt }}</td>
+        <td>
+          {% if t.status == 'done' %}<span class="badge bg-success">Выполнено</span>
+          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято в работу</span>
+          {% else %}<span class="badge bg-warning text-dark">Ожидает принятия</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+
+    {% if not tasks_pending and not tasks_outgoing %}
     <div class="p-3 text-muted">Нет активных задач</div>
     {% endif %}
     </div>
@@ -327,6 +395,13 @@
         <div class="mb-3">
           <label class="form-label fw-semibold">Задача *</label>
           <input name="title" class="form-control" placeholder="Описание задачи" required>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold">Назначить кому</label>
+          <select name="assignee_id" class="form-select">
+            <option value="{{ acc.id }}">Себе ({{ acc.name }})</option>
+            {% for a in all_accountants %}{% if a.id != acc.id %}<option value="{{ a.id }}">{{ a.name }}</option>{% endif %}{% endfor %}
+          </select>
         </div>
         <div class="row g-2">
           <div class="col-7">

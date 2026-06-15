@@ -133,6 +133,8 @@ def _migrate(conn) -> None:
         "ALTER TABLE companies ADD COLUMN has_stats_reporting INTEGER DEFAULT 0",
         "ALTER TABLE companies ADD COLUMN hr_accountant_id INTEGER REFERENCES accountants(id)",
         "ALTER TABLE accountants ADD COLUMN access_token TEXT",
+        "ALTER TABLE tasks ADD COLUMN created_by_id INTEGER REFERENCES accountants(id)",
+        "ALTER TABLE tasks ADD COLUMN accepted_at TEXT",
     ]
     for sql in migrations:
         try:
@@ -668,48 +670,75 @@ def add_task(
     accountant_id: int = None,
     description: str = None,
     due_date: str = None,
-    priority: str = 'normal'
+    priority: str = 'normal',
+    created_by_id: int = None,
 ) -> int:
     with get_db() as conn:
         cur = conn.execute(
             """INSERT INTO tasks
-               (company_id, accountant_id, title, description, due_date, priority)
-               VALUES (?, ?, ?, ?, ?, ?)""",
-            (company_id, accountant_id, title, description, due_date, priority)
+               (company_id, accountant_id, title, description, due_date, priority, created_by_id)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (company_id, accountant_id, title, description, due_date, priority, created_by_id)
         )
         return cur.lastrowid
 
 
 def get_tasks_for_accountant(accountant_id: int, status: str = None) -> list:
     with get_db() as conn:
-        q = """SELECT t.*, c.name as company_name
-               FROM tasks t LEFT JOIN companies c ON t.company_id = c.id
+        q = """SELECT t.*, c.name as company_name, cb.name as creator_name
+               FROM tasks t
+               LEFT JOIN companies c ON t.company_id = c.id
+               LEFT JOIN accountants cb ON t.created_by_id = cb.id
                WHERE t.accountant_id = ?"""
         params = [accountant_id]
         if status:
             q += " AND t.status = ?"
             params.append(status)
-        q += " ORDER BY t.due_date NULLS LAST, t.created_at"
+        q += " ORDER BY CASE t.status WHEN 'pending' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END, t.due_date NULLS LAST"
         return conn.execute(q, params).fetchall()
+
+
+def get_tasks_created_for_others(creator_id: int) -> list:
+    """Задачи, созданные этим сотрудником и назначенные другим."""
+    with get_db() as conn:
+        return conn.execute(
+            """SELECT t.*, c.name as company_name, a.name as accountant_name
+               FROM tasks t
+               LEFT JOIN companies c ON t.company_id = c.id
+               LEFT JOIN accountants a ON t.accountant_id = a.id
+               WHERE t.created_by_id = ? AND (t.accountant_id != ? OR t.accountant_id IS NULL)
+               ORDER BY CASE t.status WHEN 'pending' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END, t.due_date NULLS LAST""",
+            (creator_id, creator_id)
+        ).fetchall()
 
 
 def get_all_tasks(status: str = None) -> list:
     with get_db() as conn:
-        q = """SELECT t.*, c.name as company_name, a.name as accountant_name
+        q = """SELECT t.*, c.name as company_name, a.name as accountant_name, cb.name as creator_name
                FROM tasks t
                LEFT JOIN companies c ON t.company_id = c.id
-               LEFT JOIN accountants a ON t.accountant_id = a.id"""
+               LEFT JOIN accountants a ON t.accountant_id = a.id
+               LEFT JOIN accountants cb ON t.created_by_id = cb.id"""
         if status:
             q += " WHERE t.status = ?"
             return conn.execute(q, (status,)).fetchall()
-        return conn.execute(q).fetchall()
+        return conn.execute(q + " ORDER BY CASE t.status WHEN 'pending' THEN 0 WHEN 'accepted' THEN 1 ELSE 2 END, t.due_date NULLS LAST").fetchall()
+
+
+def mark_task_accepted(task_id: int) -> None:
+    now = datetime.now().isoformat()
+    with get_db() as conn:
+        conn.execute(
+            "UPDATE tasks SET status='accepted', accepted_at=? WHERE id=?",
+            (now, task_id)
+        )
 
 
 def mark_task_done(task_id: int) -> None:
     now = datetime.now().isoformat()
     with get_db() as conn:
         conn.execute(
-            "UPDATE tasks SET status = 'done', completed_at = ? WHERE id = ?",
+            "UPDATE tasks SET status='done', completed_at=? WHERE id=?",
             (now, task_id)
         )
 
@@ -717,10 +746,11 @@ def mark_task_done(task_id: int) -> None:
 def get_task(task_id: int):
     with get_db() as conn:
         return conn.execute(
-            """SELECT t.*, c.name as company_name, a.name as accountant_name
+            """SELECT t.*, c.name as company_name, a.name as accountant_name, cb.name as creator_name
                FROM tasks t
                LEFT JOIN companies c ON t.company_id = c.id
                LEFT JOIN accountants a ON t.accountant_id = a.id
+               LEFT JOIN accountants cb ON t.created_by_id = cb.id
                WHERE t.id = ?""",
             (task_id,)
         ).fetchone()

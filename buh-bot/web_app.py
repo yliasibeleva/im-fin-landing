@@ -895,16 +895,21 @@ async def tasks_page(
     if priority:
         tasks = [t for t in tasks if t.get('priority') == priority]
 
-    pending = [t for t in tasks if t.get('status') == 'pending']
-    done    = [t for t in tasks if t.get('status') == 'done']
+    pending  = [t for t in tasks if t.get('status') == 'pending']
+    accepted = [t for t in tasks if t.get('status') == 'accepted']
+    done     = [t for t in tasks if t.get('status') == 'done']
     overdue_count = sum(
-        1 for t in pending
+        1 for t in pending + accepted
         if t.get('due_date') and t['due_date'] < today.isoformat()
     )
+
+    if status_f:
+        tasks = [t for t in tasks if t.get('status') == status_f]
 
     return templates.TemplateResponse(request=request, name='tasks.html', context={
         'tasks':         tasks,
         'pending':       pending,
+        'accepted':      accepted,
         'done':          done,
         'overdue_count': overdue_count,
         'accountants':   [dict(a) for a in accountants_raw],
@@ -933,6 +938,12 @@ async def task_add(
     )
     prio_label = {'high': '🔴', 'low': '🟢'}.get(priority, '🟡')
     await tg(f'📋 <b>Новая задача</b>\n{prio_label} {title}' + (f'\nСрок: {due_date}' if due_date else ''))
+    return RedirectResponse('/tasks', status_code=303)
+
+
+@app.post('/tasks/{task_id}/accept')
+async def task_accept(task_id: int, _=Depends(require_auth)):
+    await asyncio.to_thread(db.mark_task_accepted, task_id)
     return RedirectResponse('/tasks', status_code=303)
 
 
@@ -1533,9 +1544,20 @@ async def portal_page(token: str, request: Request):
     stat_rows = [dict(r) for r in stat_raw]
     stat_pending = [r for r in stat_rows if r['status'] in ('pending', 'conditional')]
 
+    # Задачи назначенные МНЕ (входящие от других + мои собственные)
     tasks_raw = await asyncio.to_thread(db.get_tasks_for_accountant, acc['id'])
-    tasks_pending = [dict(t) for t in tasks_raw if dict(t).get('status') == 'pending']
-    for t in tasks_pending:
+    tasks_all_mine = [dict(t) for t in tasks_raw if dict(t).get('status') != 'done']
+    for t in tasks_all_mine:
+        t['due_fmt']   = fmt_date(t.get('due_date', ''))
+        t['days_left'] = days_left(t.get('due_date', ''))
+        t['is_incoming'] = (t.get('created_by_id') is not None and
+                            t.get('created_by_id') != acc['id'])
+    tasks_pending = tasks_all_mine  # алиас для счётчика
+
+    # Задачи которые Я передал другим (исходящие)
+    outgoing_raw = await asyncio.to_thread(db.get_tasks_created_for_others, acc['id'])
+    tasks_outgoing = [dict(t) for t in outgoing_raw if dict(t).get('status') != 'done']
+    for t in tasks_outgoing:
         t['due_fmt']   = fmt_date(t.get('due_date', ''))
         t['days_left'] = days_left(t.get('due_date', ''))
 
@@ -1559,6 +1581,8 @@ async def portal_page(token: str, request: Request):
         'upcoming': upcoming,
         'stat_pending': stat_pending,
         'tasks_pending': tasks_pending,
+        'tasks_outgoing': tasks_outgoing,
+        'all_accountants': [dict(a) for a in await asyncio.to_thread(db.get_all_accountants)],
         'works': works,
         'works_total_amount': works_total_amount,
         'works_total_hours': works_total_hours,
@@ -1622,17 +1646,27 @@ async def portal_task_add(
     token: str,
     title: str = Form(...),
     company_id: Optional[str] = Form(None),
+    assignee_id: Optional[str] = Form(None),
     due_date: Optional[str] = Form(None),
     priority: str = Form('normal'),
     description: Optional[str] = Form(None),
 ):
     acc = await _get_portal_accountant(token)
+    target_id = int(assignee_id) if assignee_id else acc['id']
     await asyncio.to_thread(
         db.add_task, title,
         int(company_id) if company_id else None,
-        acc['id'],
+        target_id,
         description or None, due_date or None, priority,
+        acc['id'],  # created_by_id
     )
+    return RedirectResponse(f'/portal/{token}#tasks', status_code=303)
+
+
+@app.post('/portal/{token}/task/{task_id}/accept')
+async def portal_task_accept(token: str, task_id: int):
+    await _get_portal_accountant(token)
+    await asyncio.to_thread(db.mark_task_accepted, task_id)
     return RedirectResponse(f'/portal/{token}#tasks', status_code=303)
 
 
