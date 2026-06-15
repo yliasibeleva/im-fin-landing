@@ -99,6 +99,20 @@ def init_db() -> None:
                 amount        REAL DEFAULT 0,
                 created_at    TEXT DEFAULT (datetime('now'))
             );
+
+            CREATE TABLE IF NOT EXISTS stat_reports (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                org_type        TEXT,
+                company_name    TEXT NOT NULL,
+                inn             TEXT,
+                accountant_name TEXT,
+                form_name       TEXT,
+                status          TEXT DEFAULT 'pending',
+                period_desc     TEXT,
+                comment         TEXT,
+                year            INTEGER DEFAULT 2026,
+                created_at      TEXT DEFAULT (datetime('now'))
+            );
         """)
         _migrate(conn)
 

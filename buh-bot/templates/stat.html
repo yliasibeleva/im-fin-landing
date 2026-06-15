@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Статотчётность — Империя Финанс{% endblock %}
+{% block content %}
+<style>
+  .badge-done       { background:#d4edda;color:#155724 }
+  .badge-pending    { background:#fff3cd;color:#856404 }
+  .badge-conditional{ background:#cfe2ff;color:#084298 }
+  .badge-excluded   { background:#e9ecef;color:#6c757d }
+  .stat-btn { border:none;background:none;cursor:pointer;padding:0;line-height:1 }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart-steps me-2 text-primary"></i>Статотчётность Росстат — 2026</h4>
+</div>
+
+{# Счётчики #}
+<div class="row g-2 mb-3">
+  <div class="col"><div class="card p-2 text-center stat-card blue"><div class="text-muted section-title">Всего форм</div><div class="fs-3 fw-bold text-primary">{{ cnt.total }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center stat-card green"><div class="text-muted section-title">Сдано</div><div class="fs-3 fw-bold text-success">{{ cnt.done }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center stat-card orange"><div class="text-muted section-title">Ожидание</div><div class="fs-3 fw-bold text-warning">{{ cnt.pending }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center" style="border-left:4px solid #0d6efd"><div class="text-muted section-title">При наличии явления</div><div class="fs-3 fw-bold text-primary">{{ cnt.conditional }}</div></div></div>
+  <div class="col"><div class="card p-2 text-center bg-light"><div class="text-muted section-title">Не сдаём</div><div class="fs-3 fw-bold text-muted">{{ cnt.excluded }}</div></div></div>
+</div>
+
+{# Фильтры #}
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Поиск (компания / ФИО / ИНН)</label>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="..." value="{{ filters.q }}">
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
+        <select name="acc" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for a in all_acc %}<option value="{{ a }}" {% if filters.acc == a %}selected{% endif %}>{{ a }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Статус</label>
+        <select name="st" class="form-select form-select-sm">
+          <option value="">Все</option>
+          <option value="pending"     {% if filters.st=='pending'     %}selected{% endif %}>Ожидание</option>
+          <option value="done"        {% if filters.st=='done'        %}selected{% endif %}>Сдано</option>
+          <option value="conditional" {% if filters.st=='conditional' %}selected{% endif %}>При наличии явления</option>
+          <option value="excluded"    {% if filters.st=='excluded'    %}selected{% endif %}>Не сдаём</option>
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Форма</label>
+        <select name="form" class="form-select form-select-sm">
+          <option value="">Все</option>
+          {% for f in all_forms %}<option value="{{ f }}" {% if filters.form == f %}selected{% endif %}>{{ f }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-1 d-flex gap-1 align-items-end">
+        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-funnel-fill"></i></button>
+        <a href="/stat" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# Таблица #}
+<div class="card">
+  <div class="card-body p-0">
+    <div style="overflow-x:auto">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead>
+        <tr>
+          <th style="min-width:40px">Тип</th>
+          <th style="min-width:160px">Компания</th>
+          <th>ИНН</th>
+          <th style="min-width:130px">Бухгалтер</th>
+          <th style="min-width:120px">Форма</th>
+          <th style="min-width:100px">Статус</th>
+          <th style="min-width:200px">Срок</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% set ns = namespace(last='') %}
+      {% for r in rows %}
+      <tr {% if r.status == 'excluded' %}class="text-muted"{% endif %}>
+        <td>
+          <span class="badge rounded-pill {% if 'ООО' in r.org_type %}badge-ooo{% elif 'ИП' in r.org_type %}badge-ip{% else %}badge-psn{% endif %}" style="font-size:.65rem">
+            {{ r.org_type or '—' }}
+          </span>
+        </td>
+        <td class="fw-semibold">{{ r.company_name }}</td>
+        <td class="text-muted" style="font-size:.78rem">{{ r.inn or '—' }}</td>
+        <td class="text-muted small">{{ r.accountant_name or '—' }}</td>
+        <td>
+          {% if r.form_name %}
+          <span class="badge bg-light text-dark border">{{ r.form_name }}</span>
+          {% else %}
+          <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if r.status == 'done' %}
+            <form method="post" action="/stat/{{ r.id }}/undone" style="display:inline">
+              <button type="submit" class="stat-btn" title="Отметить не сданным">
+                <span class="badge badge-done">✓ Сдано</span>
+              </button>
+            </form>
+          {% elif r.status == 'conditional' %}
+            <span class="badge badge-conditional">При наличии явления</span>
+          {% elif r.status == 'excluded' %}
+            <span class="badge badge-excluded">Не сдаём</span>
+          {% elif r.form_name %}
+            <form method="post" action="/stat/{{ r.id }}/done" style="display:inline">
+              <button type="submit" class="stat-btn" title="Отметить сданным">
+                <span class="badge badge-pending">· Не сдано</span>
+              </button>
+            </form>
+          {% else %}
+            <span class="text-muted small">—</span>
+          {% endif %}
+        </td>
+        <td class="text-muted small">{{ r.period_desc or '—' }}</td>
+      </tr>
+      {% endfor %}
+      {% if not rows %}
+      <tr><td colspan="7" class="text-center text-muted py-4">Нет данных</td></tr>
+      {% endif %}
+      </tbody>
+    </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

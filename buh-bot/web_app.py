@@ -1026,6 +1026,74 @@ async def work_add_global(
     return RedirectResponse('/works', status_code=303)
 
 
+# ─── Статотчётность Росстат ───────────────────────────────────────────────────
+
+@app.get('/stat', response_class=HTMLResponse)
+async def stat_page(
+    request: Request, _=Depends(require_auth),
+    q: Optional[str] = None,
+    acc: Optional[str] = None,
+    st: Optional[str] = None,
+    form: Optional[str] = None,
+):
+    def _load():
+        with db.get_db() as conn:
+            return conn.execute(
+                "SELECT * FROM stat_reports WHERE year=2026 ORDER BY company_name, form_name"
+            ).fetchall()
+
+    rows_raw = await asyncio.to_thread(_load)
+    rows = [dict(r) for r in rows_raw]
+
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in r['company_name'].lower()
+                or ql in (r['accountant_name'] or '').lower()
+                or ql in (r['inn'] or '').lower()]
+    if acc:
+        rows = [r for r in rows if acc.lower() in (r['accountant_name'] or '').lower()]
+    if st:
+        rows = [r for r in rows if r['status'] == st]
+    if form:
+        rows = [r for r in rows if form.lower() in (r['form_name'] or '').lower()]
+
+    all_acc = sorted({r['accountant_name'] for r in rows if r['accountant_name']})
+    all_forms = sorted({r['form_name'] for r in rows if r['form_name']})
+
+    cnt = {
+        'total': len(rows),
+        'done': sum(1 for r in rows if r['status'] == 'done'),
+        'pending': sum(1 for r in rows if r['status'] == 'pending'),
+        'conditional': sum(1 for r in rows if r['status'] == 'conditional'),
+        'excluded': sum(1 for r in rows if r['status'] == 'excluded'),
+    }
+
+    return templates.TemplateResponse(request=request, name='stat.html', context={
+        'rows': rows, 'cnt': cnt,
+        'all_acc': all_acc, 'all_forms': all_forms,
+        'filters': {'q': q or '', 'acc': acc or '', 'st': st or '', 'form': form or ''},
+        'today': date.today().strftime('%d.%m.%Y'),
+    })
+
+
+@app.post('/stat/{row_id}/done')
+async def stat_done(row_id: int, _=Depends(require_auth)):
+    def _upd():
+        with db.get_db() as conn:
+            conn.execute("UPDATE stat_reports SET status='done' WHERE id=?", (row_id,))
+    await asyncio.to_thread(_upd)
+    return RedirectResponse('/stat', status_code=303)
+
+
+@app.post('/stat/{row_id}/undone')
+async def stat_undone(row_id: int, _=Depends(require_auth)):
+    def _upd():
+        with db.get_db() as conn:
+            conn.execute("UPDATE stat_reports SET status='pending' WHERE id=?", (row_id,))
+    await asyncio.to_thread(_upd)
+    return RedirectResponse('/stat', status_code=303)
+
+
 # ─── Журнал ошибок ────────────────────────────────────────────────────────────
 
 @app.get('/errors', response_class=HTMLResponse)
