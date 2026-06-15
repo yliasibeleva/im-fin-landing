@@ -1451,10 +1451,11 @@ async def _get_portal_accountant(token: str):
 
 @app.get('/portal/{token}', response_class=HTMLResponse)
 async def portal_page(token: str, request: Request):
+    from calendar_data import WORK_TYPES
     acc = await _get_portal_accountant(token)
     today = date.today()
 
-    companies_raw = await asyncio.to_thread(db.get_companies_for_portal, acc['id'])
+    companies_raw  = await asyncio.to_thread(db.get_companies_for_portal, acc['id'])
     companies = [dict(c) for c in companies_raw]
     company_ids = [c['id'] for c in companies]
 
@@ -1466,9 +1467,22 @@ async def portal_page(token: str, request: Request):
         dd['days_left'] = days_left(dd['due_date'])
         deadlines.append(dd)
 
-    stat_raw = await asyncio.to_thread(db.get_portal_stat, acc['name'])
+    stat_raw  = await asyncio.to_thread(db.get_portal_stat, acc['name'])
     stat_rows = [dict(r) for r in stat_raw]
     stat_pending = [r for r in stat_rows if r['status'] in ('pending', 'conditional')]
+
+    tasks_raw = await asyncio.to_thread(db.get_tasks_for_accountant, acc['id'])
+    tasks_pending = [dict(t) for t in tasks_raw if dict(t).get('status') == 'pending']
+    for t in tasks_pending:
+        t['due_fmt']   = fmt_date(t.get('due_date', ''))
+        t['days_left'] = days_left(t.get('due_date', ''))
+
+    works_raw = await asyncio.to_thread(
+        db.get_additional_works_for_accountant, acc['id'], today.year, today.month
+    )
+    works = [dict(w) for w in works_raw]
+    works_total_amount = sum(w.get('amount') or 0 for w in works)
+    works_total_hours  = sum(w.get('hours') or 0 for w in works)
 
     overdue  = [d for d in deadlines if d['days_left'] is not None and d['days_left'] < 0]
     today_dl = [d for d in deadlines if d['days_left'] == 0]
@@ -1482,13 +1496,21 @@ async def portal_page(token: str, request: Request):
         'today_dl': today_dl,
         'upcoming': upcoming,
         'stat_pending': stat_pending,
+        'tasks_pending': tasks_pending,
+        'works': works,
+        'works_total_amount': works_total_amount,
+        'works_total_hours': works_total_hours,
+        'work_types': WORK_TYPES,
         'today': today.strftime('%d.%m.%Y'),
+        'today_iso': today.isoformat(),
         'cnt': {
             'companies': len(companies),
             'overdue': len(overdue),
             'today': len(today_dl),
             'upcoming': len(upcoming),
             'stat': len(stat_pending),
+            'tasks': len(tasks_pending),
+            'works': len(works),
         },
     })
 
@@ -1531,6 +1553,51 @@ async def portal_stat_undone(token: str, row_id: int):
             conn.execute("UPDATE stat_reports SET status='pending' WHERE id=?", (row_id,))
     await asyncio.to_thread(_upd)
     return RedirectResponse(f'/portal/{token}#stat', status_code=303)
+
+
+@app.post('/portal/{token}/task/add')
+async def portal_task_add(
+    token: str,
+    title: str = Form(...),
+    company_id: Optional[str] = Form(None),
+    due_date: Optional[str] = Form(None),
+    priority: str = Form('normal'),
+    description: Optional[str] = Form(None),
+):
+    acc = await _get_portal_accountant(token)
+    await asyncio.to_thread(
+        db.add_task, title,
+        int(company_id) if company_id else None,
+        acc['id'],
+        description or None, due_date or None, priority,
+    )
+    return RedirectResponse(f'/portal/{token}#tasks', status_code=303)
+
+
+@app.post('/portal/{token}/task/{task_id}/done')
+async def portal_task_done(token: str, task_id: int):
+    await _get_portal_accountant(token)
+    await asyncio.to_thread(db.mark_task_done, task_id)
+    return RedirectResponse(f'/portal/{token}#tasks', status_code=303)
+
+
+@app.post('/portal/{token}/work/add')
+async def portal_work_add(
+    token: str,
+    company_id: int = Form(...),
+    work_type: str = Form(...),
+    work_date: str = Form(...),
+    description: str = Form(...),
+    hours: float = Form(0),
+    amount: float = Form(0),
+):
+    acc = await _get_portal_accountant(token)
+    await asyncio.to_thread(
+        db.add_additional_work,
+        company_id, description, work_type, work_date,
+        acc['id'], hours, amount,
+    )
+    return RedirectResponse(f'/portal/{token}#works', status_code=303)
 
 
 @app.get('/tg/test')

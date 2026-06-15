@@ -14,6 +14,7 @@
     .stat-card{border-left:4px solid}
     .stat-card.blue{border-color:#0d6efd}.stat-card.green{border-color:#198754}
     .stat-card.red{border-color:#dc3545}.stat-card.orange{border-color:#fd7e14}
+    .stat-card.purple{border-color:#6f42c1}.stat-card.teal{border-color:#0dcaf0}
     .section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6c757d;margin-bottom:.5rem}
     .table th{background:#f1f4f9;font-size:.82rem;text-transform:uppercase;letter-spacing:.4px}
     .dl-overdue{background:#fff5f5}.dl-today{background:#fffbf0}
@@ -24,6 +25,10 @@
     .btn-xs{padding:.15rem .5rem;font-size:.78rem}
     .badge-ooo{background:#cfe2ff;color:#084298}.badge-ip{background:#f8d7da;color:#842029}
     .badge-usn{background:#d1ecf1;color:#0c5460}.badge-osn{background:#fff3cd;color:#856404}
+    .card-header-link{cursor:pointer}
+    .priority-high{border-left:3px solid #dc3545}
+    .priority-normal{border-left:3px solid #fd7e14}
+    .priority-low{border-left:3px solid #198754}
   </style>
 </head>
 <body>
@@ -32,8 +37,8 @@
     <a class="navbar-brand" href="/portal/{{ token }}">
       <i class="bi bi-building-fill me-2"></i>Империя Финанс
     </a>
-    <span class="navbar-text text-white-50">
-      <i class="bi bi-person-circle me-1"></i>{{ acc.name }}
+    <span class="navbar-text text-white-50 ms-auto">
+      <i class="bi bi-person-circle me-1"></i><strong class="text-white">{{ acc.name }}</strong>
       <span class="ms-3"><i class="bi bi-calendar3 me-1"></i>{{ today }}</span>
     </span>
   </div>
@@ -41,61 +46,72 @@
 
 <div class="container-fluid px-4">
 
-{# Счётчики #}
+{# ── Счётчики ── #}
 <div class="row g-2 mb-4">
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="card stat-card blue p-3">
-      <div class="text-muted section-title">Моих компаний</div>
+      <div class="text-muted section-title">Компании</div>
       <div class="fs-2 fw-bold text-primary">{{ cnt.companies }}</div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="card stat-card red p-3">
       <div class="text-muted section-title">Просрочено</div>
       <div class="fs-2 fw-bold text-danger">{{ cnt.overdue }}</div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="card stat-card orange p-3">
       <div class="text-muted section-title">Срок сегодня</div>
       <div class="fs-2 fw-bold text-warning">{{ cnt.today }}</div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="card stat-card green p-3">
-      <div class="text-muted section-title">Предстоящих (60 дн.)</div>
+      <div class="text-muted section-title">Предстоящих</div>
       <div class="fs-2 fw-bold text-success">{{ cnt.upcoming }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card purple p-3">
+      <div class="text-muted section-title">Задачи</div>
+      <div class="fs-2 fw-bold" style="color:#6f42c1">{{ cnt.tasks }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="card stat-card teal p-3">
+      <div class="text-muted section-title">Допы за месяц</div>
+      <div class="fs-2 fw-bold" style="color:#0dcaf0">{{ cnt.works }}</div>
     </div>
   </div>
 </div>
 
-{# Дедлайны #}
-{% if cnt.overdue or cnt.today or cnt.upcoming %}
-<div class="card mb-4">
-  <div class="card-header bg-light fw-semibold">
-    <i class="bi bi-calendar-check me-2 text-primary"></i>Дедлайны по отчётности
+{# ── Дедлайны ── #}
+<div class="card mb-3">
+  <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center card-header-link"
+       data-bs-toggle="collapse" data-bs-target="#secDeadlines">
+    <span><i class="bi bi-calendar-check me-2 text-primary"></i>Дедлайны по отчётности
+      {% if cnt.overdue %}<span class="badge bg-danger ms-2">{{ cnt.overdue }} просрочено</span>{% endif %}
+      {% if cnt.today %}<span class="badge bg-warning text-dark ms-1">{{ cnt.today }} сегодня</span>{% endif %}
+    </span>
+    <i class="bi bi-chevron-down"></i>
   </div>
-  <div class="card-body p-0">
+  <div id="secDeadlines" class="collapse {% if cnt.overdue or cnt.today %}show{% elif cnt.upcoming %}show{% endif %}">
+    <div class="card-body p-0">
+    {% if overdue or today_dl or upcoming %}
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead>
-        <tr>
-          <th>Компания</th>
-          <th>Отчёт</th>
-          <th>Срок</th>
-          <th>Осталось</th>
-          <th style="min-width:100px">Статус</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Компания</th><th>Отчёт</th><th>Тип</th><th>Срок</th><th>Осталось</th><th>Действие</th></tr></thead>
       <tbody>
       {% for d in overdue %}
       <tr class="dl-overdue">
         <td class="fw-semibold">{{ d.company_name }}</td>
         <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type }}</td>
         <td class="text-danger fw-bold">{{ d.due_fmt }}</td>
         <td><span class="badge bg-danger">{{ d.days_left }} дн.</span></td>
         <td>
-          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done" style="display:inline">
-            <button type="submit" class="stat-btn"><span class="badge badge-pending">· Сдать</span></button>
+          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done">
+            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
           </form>
         </td>
       </tr>
@@ -104,11 +120,12 @@
       <tr class="dl-today">
         <td class="fw-semibold">{{ d.company_name }}</td>
         <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type }}</td>
         <td class="text-warning fw-bold">{{ d.due_fmt }}</td>
         <td><span class="badge bg-warning text-dark">Сегодня</span></td>
         <td>
-          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done" style="display:inline">
-            <button type="submit" class="stat-btn"><span class="badge badge-pending">· Сдать</span></button>
+          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done">
+            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
           </form>
         </td>
       </tr>
@@ -117,41 +134,129 @@
       <tr>
         <td class="fw-semibold">{{ d.company_name }}</td>
         <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type }}</td>
         <td>{{ d.due_fmt }}</td>
         <td class="text-muted">{{ d.days_left }} дн.</td>
         <td>
-          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done" style="display:inline">
-            <button type="submit" class="stat-btn"><span class="badge badge-pending">· Сдать</span></button>
+          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done">
+            <button type="submit" class="btn btn-xs btn-outline-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
           </form>
         </td>
       </tr>
       {% endfor %}
       </tbody>
     </table>
+    {% else %}
+    <div class="p-3 text-success"><i class="bi bi-check-circle-fill me-2"></i>Нет дедлайнов в ближайшие 60 дней</div>
+    {% endif %}
+    </div>
   </div>
 </div>
-{% else %}
-<div class="alert alert-success mb-4">
-  <i class="bi bi-check-circle-fill me-2"></i>Все дедлайны в порядке — нет просроченных и предстоящих в ближайшие 60 дней.
-</div>
-{% endif %}
 
-{# Статотчётность #}
-{% if stat_pending %}
-<div class="card mb-4" id="stat">
-  <div class="card-header bg-light fw-semibold">
-    <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Статотчётность Росстат — ожидает сдачи ({{ stat_pending|length }})
+{# ── Задачи ── #}
+<div class="card mb-3" id="tasks">
+  <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+    <span class="card-header-link" data-bs-toggle="collapse" data-bs-target="#secTasks" style="cursor:pointer">
+      <i class="bi bi-list-task me-2" style="color:#6f42c1"></i>Мои задачи ({{ cnt.tasks }})
+    </span>
+    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
+      <i class="bi bi-plus-lg me-1"></i>Добавить задачу
+    </button>
   </div>
-  <div class="card-body p-0">
+  <div id="secTasks" class="collapse show">
+    <div class="card-body p-0">
+    {% if tasks_pending %}
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead>
-        <tr>
-          <th>Компания</th>
-          <th>Форма</th>
-          <th>Срок / описание</th>
-          <th>Статус</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Приоритет</th><th>Задача</th><th>Компания</th><th>Срок</th><th>Действие</th></tr></thead>
+      <tbody>
+      {% for t in tasks_pending %}
+      <tr class="priority-{{ t.priority or 'normal' }}">
+        <td>
+          {% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
+          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
+          {% else %}<span class="badge bg-warning text-dark">Обычный</span>{% endif %}
+        </td>
+        <td>
+          <div class="fw-semibold">{{ t.title }}</div>
+          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        </td>
+        <td class="text-muted small">{{ t.company_name or '—' }}</td>
+        <td>
+          {% if t.due_fmt != '—' %}
+            <span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">
+              {{ t.due_fmt }}
+            </span>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
+            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="p-3 text-muted">Нет активных задач</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Доп. работы ── #}
+<div class="card mb-3" id="works">
+  <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
+    <span class="card-header-link" data-bs-toggle="collapse" data-bs-target="#secWorks" style="cursor:pointer">
+      <i class="bi bi-briefcase me-2" style="color:#0dcaf0"></i>Доп. работы за месяц
+      {% if works_total_amount %}<span class="badge bg-light text-dark border ms-2">{{ works_total_amount|int }} ₽ / {{ works_total_hours }} ч</span>{% endif %}
+    </span>
+    <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addWorkModal">
+      <i class="bi bi-plus-lg me-1"></i>Добавить доп.
+    </button>
+  </div>
+  <div id="secWorks" class="collapse show">
+    <div class="card-body p-0">
+    {% if works %}
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead><tr><th>Дата</th><th>Компания</th><th>Вид работы</th><th>Описание</th><th class="text-end">Часы</th><th class="text-end">Сумма</th></tr></thead>
+      <tbody>
+      {% for w in works %}
+      <tr>
+        <td class="text-muted small">{{ w.work_date[8:10] }}.{{ w.work_date[5:7] }}</td>
+        <td class="fw-semibold">{{ w.company_name }}</td>
+        <td><span class="badge bg-light text-dark border" style="font-size:.72rem">{{ w.work_type }}</span></td>
+        <td class="text-muted small">{{ w.description }}</td>
+        <td class="text-end">{{ w.hours or '—' }}</td>
+        <td class="text-end fw-semibold">{% if w.amount %}{{ w.amount|int }} ₽{% else %}—{% endif %}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+      <tfoot class="table-light">
+        <tr><td colspan="4" class="fw-bold text-end">Итого:</td>
+            <td class="text-end fw-bold">{{ works_total_hours }}</td>
+            <td class="text-end fw-bold">{{ works_total_amount|int }} ₽</td></tr>
+      </tfoot>
+    </table>
+    {% else %}
+    <div class="p-3 text-muted">Нет доп. работ в этом месяце</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Статотчётность ── #}
+{% if stat_pending %}
+<div class="card mb-3" id="stat">
+  <div class="card-header bg-light fw-semibold card-header-link"
+       data-bs-toggle="collapse" data-bs-target="#secStat" style="cursor:pointer">
+    <i class="bi bi-bar-chart-steps me-2 text-primary"></i>Статотчётность — ожидает ({{ stat_pending|length }})
+    <i class="bi bi-chevron-down float-end"></i>
+  </div>
+  <div id="secStat" class="collapse show">
+    <div class="card-body p-0">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead><tr><th>Компания</th><th>Форма</th><th>Срок</th><th>Статус</th></tr></thead>
       <tbody>
       {% for r in stat_pending %}
       <tr>
@@ -160,12 +265,12 @@
         <td class="text-muted small">{{ r.period_desc or '—' }}</td>
         <td>
           {% if r.status == 'conditional' %}
-            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done" style="display:inline">
-              <button type="submit" class="stat-btn"><span class="badge badge-conditional">При наличии — нажать если сдано</span></button>
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done">
+              <button type="submit" class="btn btn-xs btn-outline-primary">При наличии — нажать если сдано</button>
             </form>
           {% else %}
-            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done" style="display:inline">
-              <button type="submit" class="stat-btn"><span class="badge badge-pending">· Не сдано</span></button>
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done">
+              <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
             </form>
           {% endif %}
         </td>
@@ -173,39 +278,28 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 </div>
 {% endif %}
 
-{# Мои компании #}
+{# ── Мои компании ── #}
 <div class="card mb-4">
-  <div class="card-header bg-light fw-semibold">
+  <div class="card-header bg-light fw-semibold card-header-link"
+       data-bs-toggle="collapse" data-bs-target="#secCompanies" style="cursor:pointer">
     <i class="bi bi-building me-2 text-primary"></i>Мои компании ({{ companies|length }})
+    <i class="bi bi-chevron-down float-end"></i>
   </div>
-  <div class="card-body p-0">
+  <div id="secCompanies" class="collapse">
+    <div class="card-body p-0">
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead>
-        <tr>
-          <th>Тип</th>
-          <th>Компания</th>
-          <th>СНО</th>
-          <th>Моя роль</th>
-        </tr>
-      </thead>
+      <thead><tr><th>Тип</th><th>Компания</th><th>СНО</th><th>Моя роль</th></tr></thead>
       <tbody>
       {% for c in companies %}
       <tr>
-        <td>
-          <span class="badge rounded-pill {% if 'ООО' in (c.org_type or '') %}badge-ooo{% else %}badge-ip{% endif %}" style="font-size:.65rem">
-            {{ c.org_type or '—' }}
-          </span>
-        </td>
+        <td><span class="badge rounded-pill {% if 'ООО' in (c.org_type or '') %}badge-ooo{% else %}badge-ip{% endif %}" style="font-size:.65rem">{{ c.org_type or '—' }}</span></td>
         <td class="fw-semibold">{{ c.name }}</td>
-        <td>
-          <span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% elif 'УСН' in (c.tax_system or '') %}badge-usn{% else %}badge-usn{% endif %}" style="font-size:.65rem">
-            {{ c.tax_system or '—' }}
-          </span>
-        </td>
+        <td><span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% else %}badge-usn{% endif %}" style="font-size:.65rem">{{ c.tax_system or '—' }}</span></td>
         <td class="text-muted small">
           {% set roles = [] %}
           {% if c.accountant_name == acc.name %}{% set _ = roles.append('Бухгалтер') %}{% endif %}
@@ -218,10 +312,104 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
   </div>
 </div>
 
+</div>{# /container #}
+
+{# ── Модал: Добавить задачу ── #}
+<div class="modal fade" id="addTaskModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form method="post" action="/portal/{{ token }}/task/add" class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-list-task me-2"></i>Новая задача</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Задача *</label>
+          <input name="title" class="form-control" placeholder="Описание задачи" required>
+        </div>
+        <div class="row g-2">
+          <div class="col-7">
+            <label class="form-label fw-semibold">Компания</label>
+            <select name="company_id" class="form-select">
+              <option value="">— без компании —</option>
+              {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-5">
+            <label class="form-label fw-semibold">Срок</label>
+            <input type="date" name="due_date" class="form-control" value="{{ today_iso }}">
+          </div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label fw-semibold">Приоритет</label>
+          <select name="priority" class="form-select">
+            <option value="normal">Обычный</option>
+            <option value="high">Срочный</option>
+            <option value="low">Низкий</option>
+          </select>
+        </div>
+        <div class="mt-2">
+          <label class="form-label">Комментарий</label>
+          <textarea name="description" class="form-control" rows="2" placeholder="Доп. информация..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="submit" class="btn btn-primary">Добавить задачу</button>
+      </div>
+    </form>
+  </div>
 </div>
+
+{# ── Модал: Добавить доп. работу ── #}
+<div class="modal fade" id="addWorkModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <form method="post" action="/portal/{{ token }}/work/add" class="modal-content">
+      <div class="modal-header"><h5 class="modal-title"><i class="bi bi-briefcase me-2"></i>Добавить доп. работу</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body">
+        <div class="row g-2">
+          <div class="col-md-7">
+            <label class="form-label fw-semibold">Компания *</label>
+            <select name="company_id" class="form-select" required>
+              <option value="">— выберите —</option>
+              {% for c in companies %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label fw-semibold">Дата *</label>
+            <input type="date" name="work_date" class="form-control" value="{{ today_iso }}" required>
+          </div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label fw-semibold">Вид работы *</label>
+          <select name="work_type" class="form-select" required>
+            {% for wt in work_types %}<option>{{ wt }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="mt-2">
+          <label class="form-label fw-semibold">Описание *</label>
+          <textarea name="description" class="form-control" rows="2" placeholder="Что именно сделано..." required></textarea>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col-6">
+            <label class="form-label fw-semibold">Часы</label>
+            <input type="number" name="hours" class="form-control" value="0" min="0" step="0.5">
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold">Сумма (₽)</label>
+            <input type="number" name="amount" class="form-control" value="0" min="0" step="100">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <button type="submit" class="btn btn-primary">Добавить</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

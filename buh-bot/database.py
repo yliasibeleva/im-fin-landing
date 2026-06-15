@@ -779,6 +779,20 @@ def get_additional_works_for_company_month(company_id: int, year: int, month: in
         ).fetchall()
 
 
+def get_additional_works_for_accountant(accountant_id: int, year: int, month: int) -> list:
+    start = f"{year}-{month:02d}-01"
+    end = f"{year}-{month+1:02d}-01" if month < 12 else f"{year+1}-01-01"
+    with get_db() as conn:
+        return conn.execute(
+            """SELECT aw.*, c.name as company_name
+               FROM additional_works aw
+               JOIN companies c ON aw.company_id = c.id
+               WHERE aw.accountant_id = ? AND aw.work_date >= ? AND aw.work_date < ?
+               ORDER BY aw.work_date DESC, c.name""",
+            (accountant_id, start, end)
+        ).fetchall()
+
+
 # ─── Обновление компании ──────────────────────────────────────────────────────
 
 def update_company(company_id: int, **fields) -> None:
