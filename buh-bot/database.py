@@ -430,6 +430,92 @@ def generate_deadlines_for_company(company_id: int, year: int = None) -> int:
         return len(rows)
 
 
+def regenerate_deadlines_for_company(company_id: int, year: int = None) -> int:
+    """Удаляет дедлайны компании за год и создаёт заново (при смене СНО)."""
+    from calendar_data import generate_deadlines
+    y = year or date.today().year
+    with get_db() as conn:
+        conn.execute(
+            "DELETE FROM report_deadlines WHERE company_id=? AND substr(due_date,1,4)=?",
+            (company_id, str(y))
+        )
+        c = conn.execute(
+            "SELECT id, tax_system, org_type, has_employees, has_military, has_stats_reporting "
+            "FROM companies WHERE id=?", (company_id,)
+        ).fetchone()
+        if not c:
+            return 0
+        rows = generate_deadlines(
+            c['id'], c['tax_system'], c['org_type'],
+            bool(c['has_employees']), bool(c['has_military']),
+            bool(c['has_stats_reporting']), year=y
+        )
+        if rows:
+            conn.executemany(
+                """INSERT INTO report_deadlines
+                   (company_id, report_name, report_type, due_date, period)
+                   VALUES (:company_id, :report_name, :report_type, :due_date, :period)""",
+                rows
+            )
+        return len(rows)
+
+
+_NDS_SYSTEMS = {'ОСН', 'УСН+НДС 5%', 'УСН+НДС 22%', 'УСН 6%+НДС', 'УСН 15%+НДС',
+                'ЕСХН+НДС', 'ОСН+ПСН'}
+
+_INSERT_DL = """INSERT INTO report_deadlines
+               (company_id, report_name, report_type, due_date, period)
+               VALUES (:company_id, :report_name, :report_type, :due_date, :period)"""
+
+
+def sync_all_deadlines(year: int = None) -> tuple:
+    """Генерирует для компаний без дедлайнов; пересоздаёт для компаний со сменой СНО.
+    Возвращает (new_rows, regen_rows)."""
+    from calendar_data import generate_deadlines
+    y = year or date.today().year
+    new_count = regen_count = 0
+    with get_db() as conn:
+        companies = conn.execute(
+            "SELECT id, tax_system, org_type, has_employees, has_military, has_stats_reporting "
+            "FROM companies WHERE is_active=1"
+        ).fetchall()
+        for c in companies:
+            exists = conn.execute(
+                "SELECT 1 FROM report_deadlines WHERE company_id=? AND substr(due_date,1,4)=?",
+                (c['id'], str(y))
+            ).fetchone()
+            if not exists:
+                rows = generate_deadlines(
+                    c['id'], c['tax_system'], c['org_type'],
+                    bool(c['has_employees']), bool(c['has_military']),
+                    bool(c['has_stats_reporting']), year=y
+                )
+                if rows:
+                    conn.executemany(_INSERT_DL, rows)
+                    new_count += len(rows)
+            else:
+                needs_nds = c['tax_system'] in _NDS_SYSTEMS
+                has_nds = bool(conn.execute(
+                    "SELECT 1 FROM report_deadlines WHERE company_id=? "
+                    "AND report_type='НДС' AND substr(due_date,1,4)=?",
+                    (c['id'], str(y))
+                ).fetchone())
+                if needs_nds != has_nds:
+                    conn.execute(
+                        "DELETE FROM report_deadlines WHERE company_id=? AND substr(due_date,1,4)=?",
+                        (c['id'], str(y))
+                    )
+                    rows = generate_deadlines(
+                        c['id'], c['tax_system'], c['org_type'],
+                        bool(c['has_employees']), bool(c['has_military']),
+                        bool(c['has_stats_reporting']), year=y
+                    )
+                    if rows:
+                        conn.executemany(_INSERT_DL, rows)
+                        regen_count += len(rows)
+    return new_count, regen_count
+
+
 def get_overdue_deadlines() -> list:
     today = date.today().isoformat()
     with get_db() as conn:

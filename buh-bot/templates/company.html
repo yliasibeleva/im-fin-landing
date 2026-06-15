@@ -136,10 +136,17 @@
     <div class="card mb-3">
       <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
         <span><i class="bi bi-calendar-event me-2"></i>Дедлайны</span>
-        <div>
-          <span class="badge bg-danger me-1">{{ overdue|length }} просроч.</span>
-          <span class="badge bg-warning text-dark me-1">{{ pending|length }} активных</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-danger">{{ overdue|length }} просроч.</span>
+          <span class="badge bg-warning text-dark">{{ pending|length }} активных</span>
           <span class="badge bg-success">{{ done|length }} выполнено</span>
+          <form method="post" action="/company/{{ company.id }}/regenerate-deadlines"
+                onsubmit="return confirm('Пересоздать все дедлайны за текущий год? Статусы «Сдано» будут сброшены.')" class="mb-0">
+            <input type="hidden" name="year" value="{{ today_iso[:4] }}">
+            <button type="submit" class="btn btn-sm btn-dark" title="Пересоздать дедлайны (при смене СНО)">
+              <i class="bi bi-arrow-repeat"></i> Обновить дедлайны
+            </button>
+          </form>
         </div>
       </div>
       <div class="card-body p-0">

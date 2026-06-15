@@ -618,8 +618,18 @@ async def reports_list_page(
 
 @app.post('/reports/generate')
 async def reports_generate(_=Depends(require_auth), year: int = Form(...)):
-    await asyncio.to_thread(db.generate_deadlines_for_all, year)
+    await asyncio.to_thread(db.sync_all_deadlines, year)
     return RedirectResponse(f'/reports?year={year}', status_code=303)
+
+
+@app.post('/company/{company_id}/regenerate-deadlines')
+async def company_regenerate_deadlines(
+    company_id: int, _=Depends(require_auth),
+    year: Optional[str] = Form(None),
+):
+    yr = int(year) if year else date.today().year
+    await asyncio.to_thread(db.regenerate_deadlines_for_company, company_id, yr)
+    return RedirectResponse(f'/company/{company_id}', status_code=303)
 
 
 @app.post('/reports/{deadline_id}/done')
