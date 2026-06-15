@@ -11,6 +11,10 @@
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <h4 class="mb-0 fw-bold"><i class="bi bi-bar-chart-steps me-2 text-primary"></i>Статотчётность Росстат — 2026</h4>
+  <a href="/stat/export?q={{ filters.q }}&acc={{ filters.acc }}&st={{ filters.st }}&form={{ filters.form }}"
+     class="btn btn-success btn-sm">
+    <i class="bi bi-file-earmark-excel me-1"></i>Сохранить в Excel
+  </a>
 </div>
 
 {# Счётчики #}
@@ -98,18 +102,26 @@
           {% endif %}
         </td>
         <td>
+          {% set back_url = '/stat?q=' ~ filters.q ~ '&acc=' ~ filters.acc ~ '&st=' ~ filters.st ~ '&form=' ~ filters.form %}
           {% if r.status == 'done' %}
             <form method="post" action="/stat/{{ r.id }}/undone" style="display:inline">
-              <button type="submit" class="stat-btn" title="Отметить не сданным">
+              <input type="hidden" name="back" value="{{ back_url }}">
+              <button type="submit" class="stat-btn" title="Нажать чтобы отменить">
                 <span class="badge badge-done">✓ Сдано</span>
               </button>
             </form>
           {% elif r.status == 'conditional' %}
-            <span class="badge badge-conditional">При наличии явления</span>
+            <form method="post" action="/stat/{{ r.id }}/done" style="display:inline">
+              <input type="hidden" name="back" value="{{ back_url }}">
+              <button type="submit" class="stat-btn" title="Отметить сданным">
+                <span class="badge badge-conditional">При наличии — нажать если сдано</span>
+              </button>
+            </form>
           {% elif r.status == 'excluded' %}
             <span class="badge badge-excluded">Не сдаём</span>
           {% elif r.form_name %}
             <form method="post" action="/stat/{{ r.id }}/done" style="display:inline">
+              <input type="hidden" name="back" value="{{ back_url }}">
               <button type="submit" class="stat-btn" title="Отметить сданным">
                 <span class="badge badge-pending">· Не сдано</span>
               </button>

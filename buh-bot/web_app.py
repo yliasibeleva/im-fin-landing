@@ -1077,21 +1077,106 @@ async def stat_page(
 
 
 @app.post('/stat/{row_id}/done')
-async def stat_done(row_id: int, _=Depends(require_auth)):
+async def stat_done(row_id: int, request: Request, _=Depends(require_auth),
+                    back: Optional[str] = Form(None)):
     def _upd():
         with db.get_db() as conn:
             conn.execute("UPDATE stat_reports SET status='done' WHERE id=?", (row_id,))
     await asyncio.to_thread(_upd)
-    return RedirectResponse('/stat', status_code=303)
+    return RedirectResponse(back or '/stat', status_code=303)
 
 
 @app.post('/stat/{row_id}/undone')
-async def stat_undone(row_id: int, _=Depends(require_auth)):
+async def stat_undone(row_id: int, request: Request, _=Depends(require_auth),
+                      back: Optional[str] = Form(None)):
     def _upd():
         with db.get_db() as conn:
             conn.execute("UPDATE stat_reports SET status='pending' WHERE id=?", (row_id,))
     await asyncio.to_thread(_upd)
-    return RedirectResponse('/stat', status_code=303)
+    return RedirectResponse(back or '/stat', status_code=303)
+
+
+@app.get('/stat/export')
+async def stat_export(
+    _=Depends(require_auth),
+    q: Optional[str] = None,
+    acc: Optional[str] = None,
+    st: Optional[str] = None,
+    form: Optional[str] = None,
+):
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment
+
+    def _load():
+        with db.get_db() as conn:
+            return conn.execute(
+                "SELECT * FROM stat_reports WHERE year=2026 ORDER BY company_name, form_name"
+            ).fetchall()
+
+    rows_raw = await asyncio.to_thread(_load)
+    rows = [dict(r) for r in rows_raw]
+    if q:
+        ql = q.lower()
+        rows = [r for r in rows if ql in r['company_name'].lower()
+                or ql in (r['accountant_name'] or '').lower()
+                or ql in (r['inn'] or '').lower()]
+    if acc:
+        rows = [r for r in rows if acc.lower() in (r['accountant_name'] or '').lower()]
+    if st:
+        rows = [r for r in rows if r['status'] == st]
+    if form:
+        rows = [r for r in rows if form.lower() in (r['form_name'] or '').lower()]
+
+    STATUS_LABELS = {'done': 'Сдано', 'pending': 'Не сдано',
+                     'conditional': 'При наличии явления', 'excluded': 'Не сдаём'}
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Статотчётность'
+
+    hdr_fill = PatternFill('solid', fgColor='1A3A5C')
+    hdr_font = Font(color='FFFFFF', bold=True, size=10)
+    headers = ['Тип', 'Компания', 'ИНН', 'Бухгалтер', 'Форма', 'Статус', 'Срок']
+    widths  = [8, 30, 15, 22, 22, 20, 40]
+
+    for ci, (h, w) in enumerate(zip(headers, widths), 1):
+        cell = ws.cell(1, ci, h)
+        cell.font = hdr_font
+        cell.fill = hdr_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        ws.column_dimensions[openpyxl.utils.get_column_letter(ci)].width = w
+
+    done_fill = PatternFill('solid', fgColor='D4EDDA')
+    excl_fill = PatternFill('solid', fgColor='E9ECEF')
+    cond_fill = PatternFill('solid', fgColor='CFE2FF')
+
+    for ri, r in enumerate(rows, 2):
+        ws.cell(ri, 1, r['org_type'] or '')
+        ws.cell(ri, 2, r['company_name'])
+        ws.cell(ri, 3, r['inn'] or '')
+        ws.cell(ri, 4, r['accountant_name'] or '')
+        ws.cell(ri, 5, r['form_name'] or '')
+        ws.cell(ri, 6, STATUS_LABELS.get(r['status'], r['status']))
+        ws.cell(ri, 7, r['period_desc'] or '')
+        fill = None
+        if r['status'] == 'done': fill = done_fill
+        elif r['status'] == 'excluded': fill = excl_fill
+        elif r['status'] == 'conditional': fill = cond_fill
+        if fill:
+            for ci in range(1, 8):
+                ws.cell(ri, ci).fill = fill
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f'stat_{date.today().strftime("%Y-%m-%d")}.xlsx'
+    if acc:
+        fname = f'stat_{acc.replace(" ", "_")}_{date.today().strftime("%Y-%m-%d")}.xlsx'
+    return StreamingResponse(
+        buf,
+        media_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f'attachment; filename="{fname}"'},
+    )
 
 
 # ─── Журнал ошибок ────────────────────────────────────────────────────────────
