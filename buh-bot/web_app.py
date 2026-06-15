@@ -1442,6 +1442,66 @@ async def export_companies(
 
 # ─── Портал бухгалтера (без Basic Auth — по токену в URL) ────────────────────
 
+# Типы дедлайнов по зонам ответственности
+_PAYROLL_RTYPES = frozenset({'6-НДФЛ', 'РСВ', 'ЕФС-1', 'Платёж СВ'})
+_HR_RTYPES      = frozenset({'Воинский учёт'})
+
+
+def _is_payroll_dl(d: dict) -> bool:
+    rt = d.get('report_type', '')
+    rn = d.get('report_name', '')
+    if rt in _PAYROLL_RTYPES:
+        return True
+    # Платёж НДФЛ за работников — не путать с "Аванс НДФЛ ИП"
+    if rt == 'Платёж НДФЛ' and 'ИП' not in rn:
+        return True
+    return False
+
+
+def _is_hr_dl(d: dict) -> bool:
+    return d.get('report_type') in _HR_RTYPES
+
+
+def _filter_deadlines_by_role(deadlines: list, companies: list, acc_id: int) -> list:
+    """Оставляет только те дедлайны, за которые отвечает данный сотрудник."""
+    companies_by_id = {c['id']: c for c in companies}
+    # Роли сотрудника в каждой компании
+    roles_map: dict = {}
+    for c in companies:
+        roles = set()
+        if c.get('accountant_id') == acc_id:
+            roles.add('accountant')
+        if c.get('payroll_accountant_id') == acc_id:
+            roles.add('payroll')
+        if c.get('hr_accountant_id') == acc_id:
+            roles.add('hr')
+        if c.get('operator_id') == acc_id:
+            roles.add('operator')
+        roles_map[c['id']] = roles
+
+    result = []
+    for d in deadlines:
+        cid = d['company_id']
+        c   = companies_by_id.get(cid)
+        if not c:
+            continue
+        roles = roles_map.get(cid, set())
+        if _is_payroll_dl(d):
+            # Зарплатник, или бухгалтер если зарплатник не назначен
+            show = ('payroll' in roles or
+                    (c.get('payroll_accountant_id') is None and
+                     ('accountant' in roles or 'operator' in roles)))
+        elif _is_hr_dl(d):
+            # Кадры, или бухгалтер если кадры не назначены
+            show = ('hr' in roles or
+                    (c.get('hr_accountant_id') is None and 'accountant' in roles))
+        else:
+            # Налоговые/бухгалтерские — бухгалтер и операционист
+            show = 'accountant' in roles or 'operator' in roles
+        if show:
+            result.append(d)
+    return result
+
 async def _get_portal_accountant(token: str):
     acc = await asyncio.to_thread(db.get_accountant_by_token, token)
     if not acc:
@@ -1460,12 +1520,14 @@ async def portal_page(token: str, request: Request):
     company_ids = [c['id'] for c in companies]
 
     deadlines_raw = await asyncio.to_thread(db.get_portal_deadlines, company_ids, 60)
-    deadlines = []
+    deadlines_all = []
     for d in deadlines_raw:
         dd = dict(d)
         dd['due_fmt']   = fmt_date(dd['due_date'])
         dd['days_left'] = days_left(dd['due_date'])
-        deadlines.append(dd)
+        deadlines_all.append(dd)
+
+    deadlines = _filter_deadlines_by_role(deadlines_all, companies, acc['id'])
 
     stat_raw  = await asyncio.to_thread(db.get_portal_stat, acc['name'])
     stat_rows = [dict(r) for r in stat_raw]
