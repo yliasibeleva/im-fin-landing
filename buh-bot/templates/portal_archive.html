@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Архив — {{ acc.name }}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+  <style>
+    body{background:#f4f6fb;font-size:.92rem}
+    .navbar{background:#1a3a5c!important}
+    .navbar-brand{font-weight:700;color:#fff!important}
+    .card{border:none;border-radius:12px;box-shadow:0 2px 8px rgba(0,0,0,.07)}
+    .table th{background:#f1f4f9;font-size:.82rem;text-transform:uppercase;letter-spacing:.4px}
+    .section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6c757d}
+    .archive-tabs .nav-link{color:#495057;font-weight:600;border:none;border-radius:8px 8px 0 0;padding:.5rem 1rem}
+    .archive-tabs .nav-link.active{background:#1a3a5c;color:#fff}
+  </style>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-dark mb-4">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="/portal/{{ token }}">
+      <i class="bi bi-arrow-left me-2"></i><strong>Империя PRO</strong>
+    </a>
+    <span class="navbar-text text-white-50 ms-auto small">
+      <i class="bi bi-person-circle me-1"></i><strong class="text-white">{{ acc.name }}</strong>
+      <span class="ms-3 d-none d-md-inline"><i class="bi bi-calendar3 me-1"></i>{{ today }}</span>
+    </span>
+  </div>
+</nav>
+
+<div class="container-fluid px-3 px-md-4">
+
+<div class="d-flex align-items-center gap-3 mb-3">
+  <h5 class="mb-0 fw-bold"><i class="bi bi-archive me-2 text-muted"></i>Архив выполненного</h5>
+  <div class="d-flex gap-2">
+    <span class="badge bg-success">{{ done_tasks|length }} задач</span>
+    <span class="badge bg-primary">{{ done_deadlines|length }} отчётов</span>
+    <span class="badge bg-secondary">{{ done_stat|length }} статотчётов</span>
+  </div>
+</div>
+
+<ul class="nav nav-tabs archive-tabs mb-0" id="archiveTabs">
+  <li class="nav-item">
+    <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#archTasks" type="button">
+      <i class="bi bi-check-circle me-1 text-success"></i>Задачи
+      <span class="badge bg-success ms-1">{{ done_tasks|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#archDeadlines" type="button">
+      <i class="bi bi-calendar-check me-1 text-primary"></i>Отчётность
+      <span class="badge bg-primary ms-1">{{ done_deadlines|length }}</span>
+    </button>
+  </li>
+  <li class="nav-item">
+    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#archStat" type="button">
+      <i class="bi bi-bar-chart-steps me-1 text-secondary"></i>Статотчётность
+      <span class="badge bg-secondary ms-1">{{ done_stat|length }}</span>
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+{# ── Выполненные задачи ── #}
+<div class="tab-pane fade show active" id="archTasks">
+  <div class="card mt-0" style="border-radius:0 12px 12px 12px">
+    <div class="card-body p-0">
+    {% if done_tasks %}
+    <div style="overflow-x:auto">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.82rem">
+      <thead>
+        <tr>
+          {% if is_supervisor %}<th>Кому</th><th>От кого</th>{% endif %}
+          <th>Задача</th><th>Компания</th><th>Приоритет</th><th>Срок</th><th>Выполнено</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for t in done_tasks %}
+      <tr class="text-muted">
+        {% if is_supervisor %}
+        <td class="small">{{ t.accountant_name or '—' }}</td>
+        <td class="small">{{ t.creator_name or '—' }}</td>
+        {% endif %}
+        <td>
+          <div class="fw-semibold text-dark">{{ t.title }}</div>
+          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        </td>
+        <td class="small">{{ t.company_name or '—' }}</td>
+        <td>
+          {% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
+          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
+          {% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}
+        </td>
+        <td class="small">{{ t.due_fmt }}</td>
+        <td class="small"><span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Выполнено</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted"><i class="bi bi-archive fs-2 d-block mb-2"></i>Нет выполненных задач</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Сданные дедлайны ── #}
+<div class="tab-pane fade" id="archDeadlines">
+  <div class="card mt-0" style="border-radius:0 12px 12px 12px">
+    <div class="card-body p-0">
+    {% if done_deadlines %}
+    <div style="overflow-x:auto">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.82rem">
+      <thead>
+        <tr>
+          <th>Компания</th><th>Отчёт</th><th>Тип</th>
+          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          <th>Срок</th><th>Дата сдачи</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in done_deadlines %}
+      <tr>
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type or '—' }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or '—' }}</td>{% endif %}
+        <td class="text-muted small">{{ d.due_fmt }}</td>
+        <td><span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>{{ d.completed_fmt }}</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted"><i class="bi bi-archive fs-2 d-block mb-2"></i>Нет сданных отчётов</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ── Сданная статотчётность ── #}
+<div class="tab-pane fade" id="archStat">
+  <div class="card mt-0" style="border-radius:0 12px 12px 12px">
+    <div class="card-body p-0">
+    {% if done_stat %}
+    <div style="overflow-x:auto">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.82rem">
+      <thead>
+        <tr>
+          <th>Компания</th>
+          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          <th>Форма</th><th>Период</th><th>Статус</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for r in done_stat %}
+      <tr>
+        <td class="fw-semibold">{{ r.company_name }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ r.accountant_name or '—' }}</td>{% endif %}
+        <td><span class="badge bg-light text-dark border">{{ r.form_name or '—' }}</span></td>
+        <td class="text-muted small">{{ r.period_desc or '—' }}</td>
+        <td><span class="badge bg-success"><i class="bi bi-check-lg me-1"></i>Сдано</span></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="p-4 text-center text-muted"><i class="bi bi-archive fs-2 d-block mb-2"></i>Нет сданных статотчётов</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+</div>{# /tab-content #}
+</div>{# /container #}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

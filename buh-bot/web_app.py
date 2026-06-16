@@ -1614,6 +1614,78 @@ async def _get_portal_accountant(token: str):
     return dict(acc)
 
 
+@app.get('/portal/{token}/archive', response_class=HTMLResponse)
+async def portal_archive(token: str, request: Request):
+    acc = await _get_portal_accountant(token)
+    is_supervisor = acc['name'] in _PORTAL_SUPERVISORS
+    is_stat_sup   = acc['name'] in _STAT_SUPERVISORS
+
+    # Выполненные задачи
+    if is_supervisor:
+        tasks_raw = await asyncio.to_thread(db.get_all_tasks, 'done')
+    else:
+        tasks_raw = await asyncio.to_thread(db.get_tasks_for_accountant, acc['id'], 'done')
+    done_tasks = [dict(t) for t in tasks_raw]
+    for t in done_tasks:
+        t['due_fmt']       = fmt_date(t.get('due_date'))
+        t['completed_fmt'] = fmt_date((t.get('completed_at') or '')[:10] or None)
+
+    # Сданные дедлайны
+    def _done_dl():
+        with db.get_db() as conn:
+            if is_supervisor:
+                return conn.execute(
+                    """SELECT rd.*, c.name as company_name, a.name as accountant_name
+                       FROM report_deadlines rd
+                       JOIN companies c ON rd.company_id = c.id
+                       LEFT JOIN accountants a ON c.accountant_id = a.id
+                       WHERE rd.status = 'done'
+                       ORDER BY rd.completed_at DESC LIMIT 300""").fetchall()
+            cids = [r[0] for r in conn.execute(
+                """SELECT id FROM companies
+                   WHERE accountant_id=? OR payroll_accountant_id=?
+                   OR operator_id=? OR hr_accountant_id=?""",
+                (acc['id'],)*4).fetchall()]
+            if not cids:
+                return []
+            ph = ','.join('?'*len(cids))
+            return conn.execute(
+                f"""SELECT rd.*, c.name as company_name
+                    FROM report_deadlines rd
+                    JOIN companies c ON rd.company_id = c.id
+                    WHERE rd.status='done' AND rd.company_id IN ({ph})
+                    ORDER BY rd.completed_at DESC LIMIT 300""", cids).fetchall()
+
+    done_dl_raw = await asyncio.to_thread(_done_dl)
+    done_deadlines = []
+    for d in done_dl_raw:
+        dd = dict(d)
+        dd['due_fmt']       = fmt_date(dd.get('due_date'))
+        dd['completed_fmt'] = fmt_date((dd.get('completed_at') or '')[:10] or None)
+        done_deadlines.append(dd)
+
+    # Сданная статотчётность
+    def _done_stat():
+        with db.get_db() as conn:
+            if is_supervisor or is_stat_sup:
+                return conn.execute(
+                    "SELECT * FROM stat_reports WHERE year=2026 AND status='done' ORDER BY company_name").fetchall()
+            return conn.execute(
+                "SELECT * FROM stat_reports WHERE year=2026 AND status='done' AND accountant_name=? ORDER BY company_name",
+                (acc['name'],)).fetchall()
+
+    done_stat_raw = await asyncio.to_thread(_done_stat)
+    done_stat = [dict(r) for r in done_stat_raw]
+
+    return templates.TemplateResponse(request=request, name='portal_archive.html', context={
+        'acc': acc, 'token': token, 'is_supervisor': is_supervisor,
+        'done_tasks': done_tasks,
+        'done_deadlines': done_deadlines,
+        'done_stat': done_stat,
+        'today': date.today().strftime('%d.%m.%Y'),
+    })
+
+
 @app.get('/portal/{token}/company/{company_id}', response_class=HTMLResponse)
 async def portal_company_view(token: str, company_id: int, request: Request):
     acc = await _get_portal_accountant(token)

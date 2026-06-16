@@ -130,6 +130,11 @@
         <i class="bi bi-people me-1"></i>Коллеги
       </button>
     </li>
+    <li class="nav-item" role="presentation">
+      <a class="nav-link" href="/portal/{{ token }}/archive">
+        <i class="bi bi-archive me-1"></i>Архив
+      </a>
+    </li>
   </ul>
 </div>
 
@@ -404,7 +409,7 @@
       <thead>
         <tr>
           <th>Тип</th><th>Компания</th><th>СНО</th>
-          {% if is_supervisor %}<th>Бухгалтер</th><th>Зарплатник</th>
+          {% if is_supervisor %}<th>Бухгалтер</th><th>Зарплатник</th><th>Операционист</th>
           {% else %}<th>Команда</th>{% endif %}
         </tr>
       </thead>
@@ -422,6 +427,7 @@
         {% if is_supervisor %}
         <td class="text-muted small">{{ c.accountant_name or '—' }}</td>
         <td class="text-muted small">{{ c.payroll_accountant_name or '—' }}</td>
+        <td class="text-muted small">{{ c.operator_name or '—' }}</td>
         {% else %}
         <td class="small">
           {% if c.accountant_name %}<div><span class="text-muted">Бухг:</span> {{ c.accountant_name }}</div>{% endif %}
