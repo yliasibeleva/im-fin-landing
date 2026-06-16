@@ -404,7 +404,7 @@
       <thead>
         <tr>
           <th>Компания</th>
-          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          {% if is_supervisor or is_stat_supervisor %}<th>Бухгалтер</th>{% endif %}
           <th>Форма</th><th>Срок</th><th>Статус</th>
         </tr>
       </thead>
@@ -412,7 +412,7 @@
       {% for r in stat_pending %}
       <tr>
         <td class="fw-semibold">{{ r.company_name }}</td>
-        {% if is_supervisor %}<td class="text-muted small">{{ r.accountant_name or '—' }}</td>{% endif %}
+        {% if is_supervisor or is_stat_supervisor %}<td class="text-muted small">{{ r.accountant_name or '—' }}</td>{% endif %}
         <td><span class="badge bg-light text-dark border">{{ r.form_name or '—' }}</span></td>
         <td class="text-muted small">{{ r.period_desc or '—' }}</td>
         <td>

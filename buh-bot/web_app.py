@@ -1547,6 +1547,7 @@ _HR_RTYPES      = frozenset({'Воинский учёт'})
 
 # Бухгалтеры с доступом ко всем данным во всех компаниях
 _PORTAL_SUPERVISORS = frozenset({'Сопова Юлия'})
+_STAT_SUPERVISORS   = frozenset({'Сопова Юлия', 'Селихова Ирина Петровна'})
 
 
 def _is_payroll_dl(d: dict) -> bool:
@@ -1639,7 +1640,7 @@ async def portal_page(token: str, request: Request):
     else:
         deadlines = _filter_deadlines_by_role(deadlines_all, companies, acc['id'])
 
-    if is_supervisor:
+    if acc['name'] in _STAT_SUPERVISORS:
         stat_raw = await asyncio.to_thread(db.get_all_stat_2026)
     else:
         stat_raw = await asyncio.to_thread(db.get_portal_stat, acc['name'])
@@ -1688,6 +1689,7 @@ async def portal_page(token: str, request: Request):
         'acc': acc,
         'token': token,
         'is_supervisor': is_supervisor,
+        'is_stat_supervisor': acc['name'] in _STAT_SUPERVISORS,
         'companies': companies,
         'overdue': overdue,
         'today_dl': today_dl,
