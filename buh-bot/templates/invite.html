@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Инструкция — {{ acc.name }}</title>
+  <title>Инструкция — {{ acc.name }} — Империя PRO</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
@@ -15,7 +15,10 @@
     .step-body h5 { margin:0 0 .3rem; font-size:1.05rem; font-weight:700 }
     .step-body p { margin:0; color:#444; font-size:.95rem; line-height:1.5 }
     .tip-box { background:#fffbf0; border-left:4px solid #fd7e14; border-radius:8px; padding:.8rem 1rem; margin:1rem 0; font-size:.9rem }
+    .info-box { background:#e8f0fe; border-left:4px solid #2563a8; border-radius:8px; padding:.8rem 1rem; margin:1rem 0; font-size:.9rem }
     .action-box { background:#d4edda; border-radius:10px; padding:1rem 1.5rem; margin:.5rem 0 }
+    .feature-row { display:flex; align-items:flex-start; gap:.75rem; margin-bottom:.75rem }
+    .feature-icon { background:#e8f0fe; color:#2563a8; border-radius:8px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:1.1rem }
     .no-print { margin-bottom:1rem }
     @media print {
       .no-print { display:none!important }
@@ -23,14 +26,13 @@
       .header-block { background:#1a3a5c!important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
       .link-box { border:2px solid #000!important }
       .step-num { background:#1a3a5c!important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
-      .action-box { background:#d4edda!important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+      .feature-icon { background:#e8f0fe!important; -webkit-print-color-adjust:exact; print-color-adjust:exact }
     }
   </style>
 </head>
 <body>
 <div class="container" style="max-width:720px;padding:2rem 1rem">
 
-  {# Кнопки — только на экране, не при печати #}
   <div class="no-print d-flex gap-2 mb-3 flex-wrap">
     <button id="btnDownload" onclick="downloadPDF()" class="btn btn-success">
       <i class="bi bi-download me-2"></i>Скачать PDF
@@ -45,45 +47,53 @@
 
   <div id="pdf-content">
 
-  {# Шапка #}
   <div class="header-block">
-    <div style="font-size:1.8rem;font-weight:800;margin-bottom:.3rem">
-      <i class="bi bi-building-fill me-2"></i>Империя Финанс
+    <div style="font-size:.85rem;opacity:.7;margin-bottom:.3rem;letter-spacing:1px;text-transform:uppercase">Система управления «Империя Финанс»</div>
+    <div style="font-size:2rem;font-weight:800;margin-bottom:.2rem">
+      <i class="bi bi-building-fill me-2"></i>Империя PRO
     </div>
-    <div style="font-size:1.1rem;opacity:.85">Личный кабинет бухгалтера</div>
-    <div style="margin-top:1rem;font-size:1.3rem;font-weight:700">
-      Для: {{ acc.name }}
+    <div style="font-size:.95rem;opacity:.8;margin-bottom:1rem">Профессиональная система контроля бухгалтерских процессов</div>
+    <div style="font-size:1.2rem;font-weight:700;background:rgba(255,255,255,.15);border-radius:8px;padding:.5rem 1rem;display:inline-block">
+      <i class="bi bi-person-badge me-2"></i>{{ acc.name }}
     </div>
-    <div style="opacity:.75;font-size:.9rem">{{ today }}</div>
+    <div style="margin-top:.5rem;opacity:.65;font-size:.85rem">Инструкция по доступу · {{ today }}</div>
   </div>
 
-  {# Ссылка #}
+  <div class="info-box">
+    <i class="bi bi-clock-fill me-2 text-primary"></i>
+    <strong>Система работает круглосуточно, 7 дней в неделю.</strong>
+    Вы можете зайти в личный кабинет в любое время — с компьютера, телефона или планшета.
+    Никаких установок не требуется.
+  </div>
+
   <h4 class="fw-bold mb-1"><i class="bi bi-link-45deg me-1 text-primary"></i>Ваша личная ссылка для входа:</h4>
   <div class="link-box">
     <i class="bi bi-globe2 me-2 text-primary"></i>{{ portal_url }}
   </div>
   <div class="tip-box">
-    <i class="bi bi-info-circle me-1 text-warning"></i>
-    <strong>Эта ссылка только для вас.</strong> Никому не передавайте. Сохраните в закладки браузера — она всегда одинаковая, пароль вводить не нужно.
+    <i class="bi bi-shield-lock me-1 text-warning"></i>
+    <strong>Это ваша персональная ссылка.</strong> Никому не передавайте.
+    Сохраните в закладки браузера — пароль вводить не нужно, вход происходит автоматически.
   </div>
 
   <hr class="my-3">
-  <h4 class="fw-bold mb-3">Как войти — пошагово:</h4>
+
+  <h4 class="fw-bold mb-3"><i class="bi bi-rocket-takeoff me-2 text-primary"></i>Как начать работу:</h4>
 
   <div class="step">
     <div class="step-num">1</div>
     <div class="step-body">
-      <h5>Откройте браузер на телефоне или компьютере</h5>
-      <p>Это может быть любой браузер: Chrome, Яндекс Браузер, Safari, Firefox. Нажмите на строку адреса вверху экрана.</p>
+      <h5>Откройте браузер</h5>
+      <p>Chrome, Яндекс Браузер, Safari или Edge на компьютере или телефоне. Нажмите на адресную строку вверху.</p>
     </div>
   </div>
 
   <div class="step">
     <div class="step-num">2</div>
     <div class="step-body">
-      <h5>Скопируйте и вставьте ссылку</h5>
-      <p>Скопируйте ссылку из этого документа (выделите → правая кнопка → Копировать). Затем вставьте в адресную строку браузера и нажмите <strong>Enter</strong>.</p>
-      <div class="action-box mt-2" style="font-size:.85rem;word-break:break-all">
+      <h5>Вставьте ссылку и нажмите Enter</h5>
+      <p>Скопируйте ссылку ниже и вставьте в адресную строку браузера:</p>
+      <div class="action-box mt-2" style="font-size:.82rem;word-break:break-all">
         <i class="bi bi-cursor-text me-1"></i>{{ portal_url }}
       </div>
     </div>
@@ -92,58 +102,73 @@
   <div class="step">
     <div class="step-num">3</div>
     <div class="step-body">
-      <h5>Сохраните в закладки</h5>
-      <p>Когда страница открылась — нажмите звёздочку ⭐ в браузере (или Ctrl+D на компьютере). Так вы сможете открывать кабинет в одно нажатие.</p>
-    </div>
-  </div>
-
-  <div class="step">
-    <div class="step-num">4</div>
-    <div class="step-body">
-      <h5>Что вы увидите</h5>
-      <p>На главной странице вашего кабинета будет:</p>
-      <ul style="margin:.3rem 0 0;padding-left:1.2rem;font-size:.9rem">
-        <li><strong>Дедлайны</strong> — отчёты которые нужно сдать (красные = просрочено, жёлтые = сегодня)</li>
-        <li><strong>Задачи</strong> — входящие от коллег и ваши собственные</li>
-        <li><strong>Доп. работы</strong> — можно записать дополнительную работу за клиента</li>
-        <li><strong>Статотчётность</strong> — отчёты в Росстат</li>
-        <li><strong>Мои компании</strong> — список ваших клиентов</li>
-      </ul>
-    </div>
-  </div>
-
-  <div class="step">
-    <div class="step-num">5</div>
-    <div class="step-body">
-      <h5>Как отметить отчёт сданным</h5>
-      <p>Найдите отчёт в разделе «Дедлайны» и нажмите кнопку <span style="background:#198754;color:#fff;padding:1px 8px;border-radius:4px;font-size:.85rem">✓ Сдано</span>. Руководитель сразу увидит изменение.</p>
-    </div>
-  </div>
-
-  <div class="step">
-    <div class="step-num">6</div>
-    <div class="step-body">
-      <h5>Как создать задачу для коллеги</h5>
-      <p>В разделе «Задачи» нажмите <span style="background:#0d6efd;color:#fff;padding:1px 8px;border-radius:4px;font-size:.85rem">+ Создать задачу</span>. Выберите кому назначить, укажите срок и нажмите «Добавить». Коллега получит задачу в свой кабинет.</p>
-    </div>
-  </div>
-
-  <div class="step">
-    <div class="step-num">7</div>
-    <div class="step-body">
-      <h5>Как записать доп. работу</h5>
-      <p>В разделе «Доп. работы» нажмите <span style="background:#0d6efd;color:#fff;padding:1px 8px;border-radius:4px;font-size:.85rem">+ Добавить доп.</span>. Выберите компанию, вид работы, укажите часы и сумму. Руководитель видит все допы в сводке.</p>
+      <h5>Добавьте в закладки (один раз)</h5>
+      <p>Когда страница открылась — нажмите <strong>Ctrl+D</strong> (Windows) или звёздочку ⭐ в браузере. Теперь заходите в один клик из закладок.</p>
     </div>
   </div>
 
   <hr class="my-3">
+
+  <h4 class="fw-bold mb-3"><i class="bi bi-grid-3x3-gap me-2 text-primary"></i>Что вы найдёте в кабинете:</h4>
+
+  <div class="feature-row">
+    <div class="feature-icon"><i class="bi bi-list-task"></i></div>
+    <div>
+      <div class="fw-semibold">Задачи</div>
+      <div class="text-muted small">Входящие задачи от коллег и руководителя. Создавайте задачи для других бухгалтеров.</div>
+    </div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon"><i class="bi bi-briefcase"></i></div>
+    <div>
+      <div class="fw-semibold">Доп. работы</div>
+      <div class="text-muted small">Фиксируйте работу сверх тарифа — вид работы, часы, сумму. Руководитель видит сводку.</div>
+    </div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon"><i class="bi bi-calendar-check"></i></div>
+    <div>
+      <div class="fw-semibold">Дедлайны</div>
+      <div class="text-muted small">Все отчёты с датами сдачи. Красные — просрочено, жёлтые — сдать сегодня. Нажмите «Сдано» после отправки.</div>
+    </div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon"><i class="bi bi-bar-chart-steps"></i></div>
+    <div>
+      <div class="fw-semibold">Статотчётность</div>
+      <div class="text-muted small">Отчёты в Росстат для ваших компаний.</div>
+    </div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon"><i class="bi bi-building"></i></div>
+    <div>
+      <div class="fw-semibold">Мои компании</div>
+      <div class="text-muted small">Список ваших клиентов. Нажмите на название — увидите описание бизнеса и состав команды.</div>
+    </div>
+  </div>
+  <div class="feature-row">
+    <div class="feature-icon"><i class="bi bi-people"></i></div>
+    <div>
+      <div class="fw-semibold">Коллеги</div>
+      <div class="text-muted small">Список всех бухгалтеров Империи Финанс с телефонами и почтой для связи.</div>
+    </div>
+  </div>
+
+  <hr class="my-3">
+
+  <div class="tip-box">
+    <i class="bi bi-info-circle me-1 text-warning"></i>
+    <strong>Важно:</strong> система доступна только внутри офисной сети.
+    Если вы работаете дистанционно и не можете открыть ссылку — обратитесь к руководителю.
+  </div>
+
   <div class="tip-box">
     <i class="bi bi-telephone-fill me-2 text-warning"></i>
-    <strong>Вопросы?</strong> Обратитесь к руководителю — Сибилева Юлия Николаевна.
+    <strong>Вопросы и помощь:</strong> Сибилева Юлия Николаевна (руководитель).
   </div>
 
   <div class="text-muted text-center mt-4" style="font-size:.8rem">
-    Империя Финанс · Бухгалтерский аутсорсинг · {{ today }}
+    Империя Финанс · Система <strong>Империя PRO</strong> · {{ today }}
   </div>
 
   </div>{# /pdf-content #}
@@ -159,7 +184,7 @@ function downloadPDF() {
   const element = document.getElementById('pdf-content');
   html2pdf().set({
     margin: [8, 8, 8, 8],
-    filename: 'instrukciya_{{ acc.name | replace(" ", "_") }}.pdf',
+    filename: 'ImperiyaPRO_instrukciya_{{ acc.name | replace(" ", "_") }}.pdf',
     image: { type: 'jpeg', quality: 0.97 },
     html2canvas: { scale: 2, useCORS: true, logging: false },
     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }

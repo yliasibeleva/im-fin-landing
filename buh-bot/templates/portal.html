@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Портал — {{ acc.name }}</title>
+  <title>Империя PRO — {{ acc.name }}</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
   <style>
@@ -18,10 +18,6 @@
     .section-title{font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#6c757d;margin-bottom:.5rem}
     .table th{background:#f1f4f9;font-size:.82rem;text-transform:uppercase;letter-spacing:.4px}
     .dl-overdue{background:#fff5f5}.dl-today{background:#fffbf0}
-    .badge-done{background:#d4edda;color:#155724}
-    .badge-pending{background:#fff3cd;color:#856404}
-    .badge-conditional{background:#cfe2ff;color:#084298}
-    .stat-btn{border:none;background:none;cursor:pointer;padding:0;line-height:1}
     .btn-xs{padding:.15rem .5rem;font-size:.78rem}
     .badge-ooo{background:#cfe2ff;color:#084298}.badge-ip{background:#f8d7da;color:#842029}
     .badge-usn{background:#d1ecf1;color:#0c5460}.badge-osn{background:#fff3cd;color:#856404}
@@ -29,23 +25,25 @@
     .priority-high{border-left:3px solid #dc3545}
     .priority-normal{border-left:3px solid #fd7e14}
     .priority-low{border-left:3px solid #198754}
+    .acc-card{border:1px solid #e3e8f0;border-radius:10px;padding:.75rem 1rem;background:#fff}
+    .acc-card:hover{background:#f0f4ff;border-color:#2563a8}
   </style>
 </head>
 <body>
 <nav class="navbar navbar-expand-lg navbar-dark mb-4">
   <div class="container-fluid">
     <a class="navbar-brand" href="/portal/{{ token }}">
-      <i class="bi bi-building-fill me-2"></i>Империя Финанс
+      <i class="bi bi-building-fill me-2"></i><strong>Империя PRO</strong>
     </a>
-    <span class="navbar-text text-white-50 ms-auto">
+    <span class="navbar-text text-white-50 ms-auto small">
       <i class="bi bi-person-circle me-1"></i><strong class="text-white">{{ acc.name }}</strong>
       {% if is_supervisor %}<span class="badge bg-warning text-dark ms-2">Контролёр</span>{% endif %}
-      <span class="ms-3"><i class="bi bi-calendar3 me-1"></i>{{ today }}</span>
+      <span class="ms-3 d-none d-md-inline"><i class="bi bi-calendar3 me-1"></i>{{ today }}</span>
     </span>
   </div>
 </nav>
 
-<div class="container-fluid px-4">
+<div class="container-fluid px-3 px-md-4">
 
 {# ── Счётчики ── #}
 <div class="row g-2 mb-4">
@@ -63,7 +61,7 @@
   </div>
   <div class="col-6 col-md-2">
     <div class="card stat-card orange p-3">
-      <div class="text-muted section-title">Срок сегодня</div>
+      <div class="text-muted section-title">Сегодня</div>
       <div class="fs-2 fw-bold text-warning">{{ cnt.today }}</div>
     </div>
   </div>
@@ -81,91 +79,13 @@
   </div>
   <div class="col-6 col-md-2">
     <div class="card stat-card teal p-3">
-      <div class="text-muted section-title">Допы за месяц</div>
+      <div class="text-muted section-title">Допы/мес</div>
       <div class="fs-2 fw-bold" style="color:#0dcaf0">{{ cnt.works }}</div>
     </div>
   </div>
 </div>
 
-{# ── Дедлайны (налоговая отчётность) ── #}
-<div class="card mb-3">
-  <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center card-header-link"
-       data-bs-toggle="collapse" data-bs-target="#secDeadlines">
-    <span><i class="bi bi-calendar-check me-2 text-primary"></i>Дедлайны по отчётности
-      {% if cnt.overdue %}<span class="badge bg-danger ms-2">{{ cnt.overdue }} просрочено</span>{% endif %}
-      {% if cnt.today %}<span class="badge bg-warning text-dark ms-1">{{ cnt.today }} сегодня</span>{% endif %}
-    </span>
-    <i class="bi bi-chevron-down"></i>
-  </div>
-  <div id="secDeadlines" class="collapse {% if cnt.overdue or cnt.today %}show{% elif cnt.upcoming %}show{% endif %}">
-    <div class="card-body p-0">
-    {% if overdue or today_dl or upcoming %}
-    <div style="overflow-x:auto">
-    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead>
-        <tr>
-          <th>Компания</th><th>Отчёт</th><th>Тип</th>
-          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
-          <th>Срок</th><th>Осталось</th><th>Действие</th>
-        </tr>
-      </thead>
-      <tbody>
-      {% for d in overdue %}
-      <tr class="dl-overdue">
-        <td class="fw-semibold">{{ d.company_name }}</td>
-        <td>{{ d.report_name }}</td>
-        <td class="text-muted small">{{ d.report_type }}</td>
-        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
-        <td class="text-danger fw-bold">{{ d.due_fmt }}</td>
-        <td><span class="badge bg-danger">{{ d.days_left }} дн.</span></td>
-        <td>
-          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done">
-            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-      {% for d in today_dl %}
-      <tr class="dl-today">
-        <td class="fw-semibold">{{ d.company_name }}</td>
-        <td>{{ d.report_name }}</td>
-        <td class="text-muted small">{{ d.report_type }}</td>
-        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
-        <td class="text-warning fw-bold">{{ d.due_fmt }}</td>
-        <td><span class="badge bg-warning text-dark">Сегодня</span></td>
-        <td>
-          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done">
-            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-      {% for d in upcoming %}
-      <tr>
-        <td class="fw-semibold">{{ d.company_name }}</td>
-        <td>{{ d.report_name }}</td>
-        <td class="text-muted small">{{ d.report_type }}</td>
-        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
-        <td>{{ d.due_fmt }}</td>
-        <td class="text-muted">{{ d.days_left }} дн.</td>
-        <td>
-          <form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done">
-            <button type="submit" class="btn btn-xs btn-outline-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
-          </form>
-        </td>
-      </tr>
-      {% endfor %}
-      </tbody>
-    </table>
-    </div>
-    {% else %}
-    <div class="p-3 text-success"><i class="bi bi-check-circle-fill me-2"></i>Нет дедлайнов в ближайшие 60 дней</div>
-    {% endif %}
-    </div>
-  </div>
-</div>
-
-{# ── Задачи ── #}
+{# ══════════════════ ЗАДАЧИ ══════════════════ #}
 <div class="card mb-3" id="tasks">
   <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
     <span class="card-header-link" data-bs-toggle="collapse" data-bs-target="#secTasks" style="cursor:pointer">
@@ -185,7 +105,6 @@
     <div class="card-body p-0">
 
     {% if is_supervisor %}
-    {# Супервизор: одна сводная таблица всех задач #}
     {% if tasks_pending %}
     <div style="overflow-x:auto">
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
@@ -208,13 +127,12 @@
           {% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}
         </td>
         <td>
-          {% if t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>
+          {% if t.due_fmt and t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>
           {% else %}—{% endif %}
         </td>
         <td>
           {% if t.status == 'pending' %}<span class="badge bg-warning text-dark">Новая</span>
-          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
-          {% endif %}
+          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>{% endif %}
         </td>
         <td>
           <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
@@ -231,8 +149,6 @@
     {% endif %}
 
     {% else %}
-    {# Обычный бухгалтер: разбивка по секциям #}
-
     {% set incoming = tasks_pending | selectattr('is_incoming') | list %}
     {% if incoming %}
     <div class="px-3 pt-2 pb-1"><span class="section-title text-danger"><i class="bi bi-arrow-down-circle me-1"></i>Входящие от коллег ({{ incoming|length }})</span></div>
@@ -242,29 +158,15 @@
       {% for t in incoming %}
       <tr class="priority-{{ t.priority or 'normal' }} {% if t.status == 'pending' %}table-warning{% endif %}">
         <td class="text-muted small fw-semibold">{{ t.creator_name or '—' }}</td>
-        <td>
-          <div class="fw-semibold">{{ t.title }}</div>
-          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
-        </td>
+        <td><div class="fw-semibold">{{ t.title }}</div>{% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}</td>
         <td class="text-muted small">{{ t.company_name or '—' }}</td>
-        <td>
-          {% if t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>
-          {% else %}—{% endif %}
-        </td>
-        <td>
-          {% if t.status == 'pending' %}<span class="badge bg-danger">Новая</span>
-          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
-          {% endif %}
-        </td>
+        <td>{% if t.due_fmt and t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>{% else %}—{% endif %}</td>
+        <td>{% if t.status == 'pending' %}<span class="badge bg-danger">Новая</span>{% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>{% endif %}</td>
         <td class="d-flex gap-1 flex-wrap">
           {% if t.status == 'pending' %}
-          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/accept">
-            <button type="submit" class="btn btn-xs btn-info text-dark"><i class="bi bi-hand-thumbs-up me-1"></i>Принять</button>
-          </form>
+          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/accept"><button type="submit" class="btn btn-xs btn-info text-dark"><i class="bi bi-hand-thumbs-up me-1"></i>Принять</button></form>
           {% endif %}
-          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
-            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button>
-          </form>
+          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done"><button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button></form>
         </td>
       </tr>
       {% endfor %}
@@ -280,22 +182,11 @@
       <tbody>
       {% for t in my_own %}
       <tr class="priority-{{ t.priority or 'normal' }}">
-        <td>
-          <div class="fw-semibold">{{ t.title }}</div>
-          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
-        </td>
+        <td><div class="fw-semibold">{{ t.title }}</div>{% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}</td>
         <td class="text-muted small">{{ t.company_name or '—' }}</td>
-        <td>
-          {% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
-          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
-          {% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}
-        </td>
-        <td>{% if t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>{% else %}—{% endif %}</td>
-        <td>
-          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
-            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button>
-          </form>
-        </td>
+        <td>{% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>{% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>{% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}</td>
+        <td>{% if t.due_fmt and t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>{% else %}—{% endif %}</td>
+        <td><form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done"><button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Выполнено</button></form></td>
       </tr>
       {% endfor %}
       </tbody>
@@ -310,17 +201,10 @@
       {% for t in tasks_outgoing %}
       <tr>
         <td class="text-muted small fw-semibold">{{ t.accountant_name or '—' }}</td>
-        <td>
-          <div class="fw-semibold">{{ t.title }}</div>
-          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
-        </td>
+        <td><div class="fw-semibold">{{ t.title }}</div>{% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}</td>
         <td class="text-muted small">{{ t.company_name or '—' }}</td>
         <td class="text-muted small">{{ t.due_fmt }}</td>
-        <td>
-          {% if t.status == 'done' %}<span class="badge bg-success">Выполнено</span>
-          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято в работу</span>
-          {% else %}<span class="badge bg-warning text-dark">Ожидает принятия</span>{% endif %}
-        </td>
+        <td>{% if t.status == 'done' %}<span class="badge bg-success">Выполнено</span>{% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято в работу</span>{% else %}<span class="badge bg-warning text-dark">Ожидает</span>{% endif %}</td>
       </tr>
       {% endfor %}
       </tbody>
@@ -336,7 +220,7 @@
   </div>
 </div>
 
-{# ── Доп. работы ── #}
+{# ══════════════════ ДОП. РАБОТЫ ══════════════════ #}
 <div class="card mb-3" id="works">
   <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
     <span class="card-header-link" data-bs-toggle="collapse" data-bs-target="#secWorks" style="cursor:pointer">
@@ -389,7 +273,73 @@
   </div>
 </div>
 
-{# ── Статотчётность ── #}
+{# ══════════════════ ДЕДЛАЙНЫ ══════════════════ #}
+<div class="card mb-3">
+  <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center card-header-link"
+       data-bs-toggle="collapse" data-bs-target="#secDeadlines">
+    <span><i class="bi bi-calendar-check me-2 text-primary"></i>Дедлайны по отчётности
+      {% if cnt.overdue %}<span class="badge bg-danger ms-2">{{ cnt.overdue }} просрочено</span>{% endif %}
+      {% if cnt.today %}<span class="badge bg-warning text-dark ms-1">{{ cnt.today }} сегодня</span>{% endif %}
+    </span>
+    <i class="bi bi-chevron-down"></i>
+  </div>
+  <div id="secDeadlines" class="collapse {% if cnt.overdue or cnt.today or cnt.upcoming %}show{% endif %}">
+    <div class="card-body p-0">
+    {% if overdue or today_dl or upcoming %}
+    <div style="overflow-x:auto">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead>
+        <tr>
+          <th>Компания</th><th>Отчёт</th><th>Тип</th>
+          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          <th>Срок</th><th>Осталось</th><th>Действие</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for d in overdue %}
+      <tr class="dl-overdue">
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
+        <td class="text-danger fw-bold">{{ d.due_fmt }}</td>
+        <td><span class="badge bg-danger">{{ d.days_left }} дн.</span></td>
+        <td><form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done"><button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button></form></td>
+      </tr>
+      {% endfor %}
+      {% for d in today_dl %}
+      <tr class="dl-today">
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
+        <td class="text-warning fw-bold">{{ d.due_fmt }}</td>
+        <td><span class="badge bg-warning text-dark">Сегодня</span></td>
+        <td><form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done"><button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button></form></td>
+      </tr>
+      {% endfor %}
+      {% for d in upcoming %}
+      <tr>
+        <td class="fw-semibold">{{ d.company_name }}</td>
+        <td>{{ d.report_name }}</td>
+        <td class="text-muted small">{{ d.report_type }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
+        <td>{{ d.due_fmt }}</td>
+        <td class="text-muted">{{ d.days_left }} дн.</td>
+        <td><form method="post" action="/portal/{{ token }}/deadline/{{ d.id }}/done"><button type="submit" class="btn btn-xs btn-outline-success"><i class="bi bi-check-lg me-1"></i>Сдано</button></form></td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-success"><i class="bi bi-check-circle-fill me-2"></i>Нет дедлайнов в ближайшие 60 дней</div>
+    {% endif %}
+    </div>
+  </div>
+</div>
+
+{# ══════════════════ СТАТОТЧЁТНОСТЬ ══════════════════ #}
 {% if stat_pending %}
 <div class="card mb-3" id="stat">
   <div class="card-header bg-light fw-semibold card-header-link"
@@ -417,13 +367,9 @@
         <td class="text-muted small">{{ r.period_desc or '—' }}</td>
         <td>
           {% if r.status == 'conditional' %}
-            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done">
-              <button type="submit" class="btn btn-xs btn-outline-primary">При наличии — нажать если сдано</button>
-            </form>
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done"><button type="submit" class="btn btn-xs btn-outline-primary">При наличии — нажать если сдано</button></form>
           {% else %}
-            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done">
-              <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button>
-            </form>
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done"><button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button></form>
           {% endif %}
         </td>
       </tr>
@@ -436,8 +382,8 @@
 </div>
 {% endif %}
 
-{# ── Компании ── #}
-<div class="card mb-4">
+{# ══════════════════ КОМПАНИИ ══════════════════ #}
+<div class="card mb-3">
   <div class="card-header bg-light fw-semibold card-header-link"
        data-bs-toggle="collapse" data-bs-target="#secCompanies" style="cursor:pointer">
     <i class="bi bi-building me-2 text-primary"></i>
@@ -452,32 +398,75 @@
         <tr>
           <th>Тип</th><th>Компания</th><th>СНО</th>
           {% if is_supervisor %}<th>Бухгалтер</th><th>Зарплатник</th>
-          {% else %}<th>Моя роль</th>{% endif %}
+          {% else %}<th>Команда</th>{% endif %}
         </tr>
       </thead>
       <tbody>
       {% for c in companies %}
       <tr>
         <td><span class="badge rounded-pill {% if 'ООО' in (c.org_type or '') %}badge-ooo{% else %}badge-ip{% endif %}" style="font-size:.65rem">{{ c.org_type or '—' }}</span></td>
-        <td class="fw-semibold"><a href="/portal/{{ token }}/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a></td>
+        <td class="fw-semibold">
+          <a href="/portal/{{ token }}/company/{{ c.id }}" class="text-decoration-none text-dark">
+            {{ c.name }} <i class="bi bi-info-circle text-primary" style="font-size:.75rem"></i>
+          </a>
+        </td>
         <td><span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% else %}badge-usn{% endif %}" style="font-size:.65rem">{{ c.tax_system or '—' }}</span></td>
         {% if is_supervisor %}
         <td class="text-muted small">{{ c.accountant_name or '—' }}</td>
         <td class="text-muted small">{{ c.payroll_accountant_name or '—' }}</td>
         {% else %}
-        <td class="text-muted small">
-          {% set roles = [] %}
-          {% if c.accountant_name == acc.name %}{% set _ = roles.append('Бухгалтер') %}{% endif %}
-          {% if c.payroll_accountant_name == acc.name %}{% set _ = roles.append('Зарплатник') %}{% endif %}
-          {% if c.operator_name == acc.name %}{% set _ = roles.append('Операционист') %}{% endif %}
-          {% if c.hr_accountant_name == acc.name %}{% set _ = roles.append('Кадры') %}{% endif %}
-          {{ roles|join(', ') or '—' }}
+        <td class="small">
+          {% if c.accountant_name %}<div><span class="text-muted">Бухг:</span> {{ c.accountant_name }}</div>{% endif %}
+          {% if c.payroll_accountant_name %}<div><span class="text-muted">Зарп:</span> {{ c.payroll_accountant_name }}</div>{% endif %}
+          {% if c.hr_accountant_name %}<div><span class="text-muted">Кадры:</span> {{ c.hr_accountant_name }}</div>{% endif %}
+          {% if c.operator_name %}<div><span class="text-muted">Опер:</span> {{ c.operator_name }}</div>{% endif %}
         </td>
         {% endif %}
       </tr>
       {% endfor %}
       </tbody>
     </table>
+    </div>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════ БУХГАЛТЕРЫ ══════════════════ #}
+<div class="card mb-4">
+  <div class="card-header bg-light fw-semibold card-header-link"
+       data-bs-toggle="collapse" data-bs-target="#secAccountants" style="cursor:pointer">
+    <i class="bi bi-people me-2 text-primary"></i>Коллеги — Империя Финанс ({{ all_accountants|length }})
+    <i class="bi bi-chevron-down float-end"></i>
+  </div>
+  <div id="secAccountants" class="collapse">
+    <div class="card-body">
+    <div class="row g-2">
+    {% for a in all_accountants | sort(attribute='name') %}
+    <div class="col-12 col-md-6 col-lg-4">
+      <div class="acc-card {% if a.id == acc.id %}border-primary{% endif %}">
+        <div class="fw-semibold">
+          {{ a.name }}
+          {% if a.id == acc.id %}<span class="badge bg-primary ms-1" style="font-size:.65rem">Вы</span>{% endif %}
+        </div>
+        {% if a.position %}<div class="text-muted small">{{ a.position }}</div>{% endif %}
+        <div class="mt-1 d-flex gap-2 flex-wrap">
+          {% if a.phone %}
+          <a href="tel:{{ a.phone }}" class="text-decoration-none small">
+            <i class="bi bi-telephone me-1 text-success"></i>{{ a.phone }}
+          </a>
+          {% endif %}
+          {% if a.email %}
+          <a href="mailto:{{ a.email }}" class="text-decoration-none small text-muted">
+            <i class="bi bi-envelope me-1"></i>{{ a.email }}
+          </a>
+          {% endif %}
+          {% if not a.phone and not a.email %}
+          <span class="text-muted small">—</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
     </div>
     </div>
   </div>
@@ -586,9 +575,8 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
-// Сохранение состояния свёрнутости секций
 (function(){
-  const ids = ['secDeadlines','secTasks','secWorks','secStat','secCompanies'];
+  const ids = ['secTasks','secWorks','secDeadlines','secStat','secCompanies','secAccountants'];
   ids.forEach(function(id){
     const el = document.getElementById(id);
     if(!el) return;
