@@ -1,9 +1,17 @@
-﻿@echo off
+@echo off
 chcp 65001 >nul
 cd /d "D:\РС\Визитка\buh-bot"
-echo Запуск дашборда...
-echo Открыть в браузере: http://localhost:8000
-echo Логин: admin
+echo ============================================
+echo  Империя Финанс — Дашборд
+echo  Закрыть это окно = остановить сервер
+echo ============================================
+:loop
+echo.
+echo Запуск сервера...
 start "" "http://localhost:8000"
 python web_app.py
-pause
+echo.
+echo Сервер остановлен. Перезапуск через 5 секунд...
+echo (закройте это окно чтобы остановить)
+timeout /t 5 >nul
+goto loop

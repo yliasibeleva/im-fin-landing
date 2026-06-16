@@ -103,11 +103,13 @@ def fmt_date(iso: str) -> str:
         return iso
 
 
-def days_left(iso: str) -> int:
+def days_left(iso) -> int | None:
+    if not iso:
+        return None
     try:
-        return (date.fromisoformat(iso[:10]) - date.today()).days
-    except ValueError:
-        return 0
+        return (date.fromisoformat(str(iso)[:10]) - date.today()).days
+    except (ValueError, TypeError):
+        return None
 
 
 # ─── Маршруты ─────────────────────────────────────────────────────────────────
@@ -1610,6 +1612,19 @@ async def _get_portal_accountant(token: str):
     if not acc:
         raise HTTPException(status_code=404, detail='Ссылка недействительна')
     return dict(acc)
+
+
+@app.get('/portal/{token}/company/{company_id}', response_class=HTMLResponse)
+async def portal_company_view(token: str, company_id: int, request: Request):
+    acc = await _get_portal_accountant(token)
+    company = await asyncio.to_thread(db.get_company, company_id)
+    if not company:
+        raise HTTPException(status_code=404)
+    return templates.TemplateResponse(request=request, name='portal_company.html', context={
+        'acc': acc, 'token': token,
+        'company': dict(company),
+        'today': date.today().strftime('%d.%m.%Y'),
+    })
 
 
 @app.get('/portal/{token}', response_class=HTMLResponse)

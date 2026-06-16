@@ -459,7 +459,7 @@
       {% for c in companies %}
       <tr>
         <td><span class="badge rounded-pill {% if 'ООО' in (c.org_type or '') %}badge-ooo{% else %}badge-ip{% endif %}" style="font-size:.65rem">{{ c.org_type or '—' }}</span></td>
-        <td class="fw-semibold">{{ c.name }}</td>
+        <td class="fw-semibold"><a href="/portal/{{ token }}/company/{{ c.id }}" class="text-decoration-none text-dark">{{ c.name }}</a></td>
         <td><span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% else %}badge-usn{% endif %}" style="font-size:.65rem">{{ c.tax_system or '—' }}</span></td>
         {% if is_supervisor %}
         <td class="text-muted small">{{ c.accountant_name or '—' }}</td>
@@ -585,5 +585,21 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Сохранение состояния свёрнутости секций
+(function(){
+  const ids = ['secDeadlines','secTasks','secWorks','secStat','secCompanies'];
+  ids.forEach(function(id){
+    const el = document.getElementById(id);
+    if(!el) return;
+    const key = 'portal_collapse_' + id;
+    const saved = localStorage.getItem(key);
+    if(saved === 'hidden') el.classList.remove('show');
+    else if(saved === 'shown') el.classList.add('show');
+    el.addEventListener('shown.bs.collapse', function(){ localStorage.setItem(key,'shown'); });
+    el.addEventListener('hidden.bs.collapse', function(){ localStorage.setItem(key,'hidden'); });
+  });
+})();
+</script>
 </body>
 </html>
