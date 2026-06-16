@@ -39,6 +39,7 @@
     </a>
     <span class="navbar-text text-white-50 ms-auto">
       <i class="bi bi-person-circle me-1"></i><strong class="text-white">{{ acc.name }}</strong>
+      {% if is_supervisor %}<span class="badge bg-warning text-dark ms-2">Контролёр</span>{% endif %}
       <span class="ms-3"><i class="bi bi-calendar3 me-1"></i>{{ today }}</span>
     </span>
   </div>
@@ -86,7 +87,7 @@
   </div>
 </div>
 
-{# ── Дедлайны ── #}
+{# ── Дедлайны (налоговая отчётность) ── #}
 <div class="card mb-3">
   <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center card-header-link"
        data-bs-toggle="collapse" data-bs-target="#secDeadlines">
@@ -99,14 +100,22 @@
   <div id="secDeadlines" class="collapse {% if cnt.overdue or cnt.today %}show{% elif cnt.upcoming %}show{% endif %}">
     <div class="card-body p-0">
     {% if overdue or today_dl or upcoming %}
+    <div style="overflow-x:auto">
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead><tr><th>Компания</th><th>Отчёт</th><th>Тип</th><th>Срок</th><th>Осталось</th><th>Действие</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Компания</th><th>Отчёт</th><th>Тип</th>
+          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          <th>Срок</th><th>Осталось</th><th>Действие</th>
+        </tr>
+      </thead>
       <tbody>
       {% for d in overdue %}
       <tr class="dl-overdue">
         <td class="fw-semibold">{{ d.company_name }}</td>
         <td>{{ d.report_name }}</td>
         <td class="text-muted small">{{ d.report_type }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
         <td class="text-danger fw-bold">{{ d.due_fmt }}</td>
         <td><span class="badge bg-danger">{{ d.days_left }} дн.</span></td>
         <td>
@@ -121,6 +130,7 @@
         <td class="fw-semibold">{{ d.company_name }}</td>
         <td>{{ d.report_name }}</td>
         <td class="text-muted small">{{ d.report_type }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
         <td class="text-warning fw-bold">{{ d.due_fmt }}</td>
         <td><span class="badge bg-warning text-dark">Сегодня</span></td>
         <td>
@@ -135,6 +145,7 @@
         <td class="fw-semibold">{{ d.company_name }}</td>
         <td>{{ d.report_name }}</td>
         <td class="text-muted small">{{ d.report_type }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ d.accountant_name or d.payroll_accountant_name or '—' }}</td>{% endif %}
         <td>{{ d.due_fmt }}</td>
         <td class="text-muted">{{ d.days_left }} дн.</td>
         <td>
@@ -146,6 +157,7 @@
       {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
     <div class="p-3 text-success"><i class="bi bi-check-circle-fill me-2"></i>Нет дедлайнов в ближайшие 60 дней</div>
     {% endif %}
@@ -158,8 +170,12 @@
   <div class="card-header bg-light fw-semibold d-flex justify-content-between align-items-center">
     <span class="card-header-link" data-bs-toggle="collapse" data-bs-target="#secTasks" style="cursor:pointer">
       <i class="bi bi-list-task me-2" style="color:#6f42c1"></i>Задачи
-      {% set incoming_new = tasks_pending | selectattr('is_incoming') | selectattr('status', 'equalto', 'pending') | list %}
-      {% if incoming_new %}<span class="badge bg-danger ms-1">{{ incoming_new|length }} новых</span>{% endif %}
+      {% if is_supervisor %}
+        {% if tasks_pending %}<span class="badge bg-secondary ms-1">{{ tasks_pending|length }}</span>{% endif %}
+      {% else %}
+        {% set incoming_new = tasks_pending | selectattr('is_incoming') | selectattr('status', 'equalto', 'pending') | list %}
+        {% if incoming_new %}<span class="badge bg-danger ms-1">{{ incoming_new|length }} новых</span>{% endif %}
+      {% endif %}
     </span>
     <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal">
       <i class="bi bi-plus-lg me-1"></i>Создать задачу
@@ -168,7 +184,55 @@
   <div id="secTasks" class="collapse show">
     <div class="card-body p-0">
 
-    {# Входящие — назначены мне другими #}
+    {% if is_supervisor %}
+    {# Супервизор: одна сводная таблица всех задач #}
+    {% if tasks_pending %}
+    <div style="overflow-x:auto">
+    <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
+      <thead>
+        <tr><th>Кому</th><th>От кого</th><th>Задача</th><th>Компания</th><th>Приоритет</th><th>Срок</th><th>Статус</th><th>Действие</th></tr>
+      </thead>
+      <tbody>
+      {% for t in tasks_pending %}
+      <tr class="priority-{{ t.priority or 'normal' }} {% if t.status == 'pending' %}table-warning{% endif %}">
+        <td class="text-muted small fw-semibold">{{ t.accountant_name or '—' }}</td>
+        <td class="text-muted small">{{ t.creator_name or '—' }}</td>
+        <td>
+          <div class="fw-semibold">{{ t.title }}</div>
+          {% if t.description %}<div class="text-muted small">{{ t.description }}</div>{% endif %}
+        </td>
+        <td class="text-muted small">{{ t.company_name or '—' }}</td>
+        <td>
+          {% if t.priority == 'high' %}<span class="badge bg-danger">Срочно</span>
+          {% elif t.priority == 'low' %}<span class="badge bg-success">Низкий</span>
+          {% else %}<span class="badge bg-secondary">Обычный</span>{% endif %}
+        </td>
+        <td>
+          {% if t.due_fmt != '—' %}<span class="{% if t.days_left is not none and t.days_left < 0 %}text-danger fw-bold{% elif t.days_left == 0 %}text-warning fw-bold{% endif %}">{{ t.due_fmt }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          {% if t.status == 'pending' %}<span class="badge bg-warning text-dark">Новая</span>
+          {% elif t.status == 'accepted' %}<span class="badge bg-info text-dark">Принято</span>
+          {% endif %}
+        </td>
+        <td>
+          <form method="post" action="/portal/{{ token }}/task/{{ t.id }}/done">
+            <button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Готово</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div class="p-3 text-muted">Нет активных задач</div>
+    {% endif %}
+
+    {% else %}
+    {# Обычный бухгалтер: разбивка по секциям #}
+
     {% set incoming = tasks_pending | selectattr('is_incoming') | list %}
     {% if incoming %}
     <div class="px-3 pt-2 pb-1"><span class="section-title text-danger"><i class="bi bi-arrow-down-circle me-1"></i>Входящие от коллег ({{ incoming|length }})</span></div>
@@ -208,7 +272,6 @@
     </table>
     {% endif %}
 
-    {# Мои собственные задачи #}
     {% set my_own = tasks_pending | rejectattr('is_incoming') | list %}
     {% if my_own %}
     <div class="px-3 pt-2 pb-1 {% if incoming %}border-top mt-1{% endif %}"><span class="section-title" style="color:#6f42c1"><i class="bi bi-person me-1"></i>Мои задачи ({{ my_own|length }})</span></div>
@@ -239,7 +302,6 @@
     </table>
     {% endif %}
 
-    {# Переданные коллегам #}
     {% if tasks_outgoing %}
     <div class="px-3 pt-2 pb-1 border-top mt-1"><span class="section-title text-primary"><i class="bi bi-arrow-up-circle me-1"></i>Переданные коллегам ({{ tasks_outgoing|length }})</span></div>
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
@@ -268,6 +330,8 @@
     {% if not tasks_pending and not tasks_outgoing %}
     <div class="p-3 text-muted">Нет активных задач</div>
     {% endif %}
+    {% endif %}{# /is_supervisor #}
+
     </div>
   </div>
 </div>
@@ -286,12 +350,21 @@
   <div id="secWorks" class="collapse show">
     <div class="card-body p-0">
     {% if works %}
+    <div style="overflow-x:auto">
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead><tr><th>Дата</th><th>Компания</th><th>Вид работы</th><th>Описание</th><th class="text-end">Часы</th><th class="text-end">Сумма</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Дата</th>
+          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          <th>Компания</th><th>Вид работы</th><th>Описание</th>
+          <th class="text-end">Часы</th><th class="text-end">Сумма</th>
+        </tr>
+      </thead>
       <tbody>
       {% for w in works %}
       <tr>
         <td class="text-muted small">{{ w.work_date[8:10] }}.{{ w.work_date[5:7] }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ w.accountant_name or '—' }}</td>{% endif %}
         <td class="fw-semibold">{{ w.company_name }}</td>
         <td><span class="badge bg-light text-dark border" style="font-size:.72rem">{{ w.work_type }}</span></td>
         <td class="text-muted small">{{ w.description }}</td>
@@ -301,11 +374,14 @@
       {% endfor %}
       </tbody>
       <tfoot class="table-light">
-        <tr><td colspan="4" class="fw-bold text-end">Итого:</td>
-            <td class="text-end fw-bold">{{ works_total_hours }}</td>
-            <td class="text-end fw-bold">{{ works_total_amount|int }} ₽</td></tr>
+        <tr>
+          <td colspan="{% if is_supervisor %}5{% else %}4{% endif %}" class="fw-bold text-end">Итого:</td>
+          <td class="text-end fw-bold">{{ works_total_hours }}</td>
+          <td class="text-end fw-bold">{{ works_total_amount|int }} ₽</td>
+        </tr>
       </tfoot>
     </table>
+    </div>
     {% else %}
     <div class="p-3 text-muted">Нет доп. работ в этом месяце</div>
     {% endif %}
@@ -323,12 +399,20 @@
   </div>
   <div id="secStat" class="collapse show">
     <div class="card-body p-0">
+    <div style="overflow-x:auto">
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead><tr><th>Компания</th><th>Форма</th><th>Срок</th><th>Статус</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Компания</th>
+          {% if is_supervisor %}<th>Бухгалтер</th>{% endif %}
+          <th>Форма</th><th>Срок</th><th>Статус</th>
+        </tr>
+      </thead>
       <tbody>
       {% for r in stat_pending %}
       <tr>
         <td class="fw-semibold">{{ r.company_name }}</td>
+        {% if is_supervisor %}<td class="text-muted small">{{ r.accountant_name or '—' }}</td>{% endif %}
         <td><span class="badge bg-light text-dark border">{{ r.form_name or '—' }}</span></td>
         <td class="text-muted small">{{ r.period_desc or '—' }}</td>
         <td>
@@ -347,27 +431,40 @@
       </tbody>
     </table>
     </div>
+    </div>
   </div>
 </div>
 {% endif %}
 
-{# ── Мои компании ── #}
+{# ── Компании ── #}
 <div class="card mb-4">
   <div class="card-header bg-light fw-semibold card-header-link"
        data-bs-toggle="collapse" data-bs-target="#secCompanies" style="cursor:pointer">
-    <i class="bi bi-building me-2 text-primary"></i>Мои компании ({{ companies|length }})
+    <i class="bi bi-building me-2 text-primary"></i>
+    {% if is_supervisor %}Все компании{% else %}Мои компании{% endif %} ({{ companies|length }})
     <i class="bi bi-chevron-down float-end"></i>
   </div>
   <div id="secCompanies" class="collapse">
     <div class="card-body p-0">
+    <div style="overflow-x:auto">
     <table class="table table-hover mb-0 align-middle" style="font-size:.83rem">
-      <thead><tr><th>Тип</th><th>Компания</th><th>СНО</th><th>Моя роль</th></tr></thead>
+      <thead>
+        <tr>
+          <th>Тип</th><th>Компания</th><th>СНО</th>
+          {% if is_supervisor %}<th>Бухгалтер</th><th>Зарплатник</th>
+          {% else %}<th>Моя роль</th>{% endif %}
+        </tr>
+      </thead>
       <tbody>
       {% for c in companies %}
       <tr>
         <td><span class="badge rounded-pill {% if 'ООО' in (c.org_type or '') %}badge-ooo{% else %}badge-ip{% endif %}" style="font-size:.65rem">{{ c.org_type or '—' }}</span></td>
         <td class="fw-semibold">{{ c.name }}</td>
         <td><span class="badge rounded-pill {% if 'ОСН' == c.tax_system %}badge-osn{% else %}badge-usn{% endif %}" style="font-size:.65rem">{{ c.tax_system or '—' }}</span></td>
+        {% if is_supervisor %}
+        <td class="text-muted small">{{ c.accountant_name or '—' }}</td>
+        <td class="text-muted small">{{ c.payroll_accountant_name or '—' }}</td>
+        {% else %}
         <td class="text-muted small">
           {% set roles = [] %}
           {% if c.accountant_name == acc.name %}{% set _ = roles.append('Бухгалтер') %}{% endif %}
@@ -376,10 +473,12 @@
           {% if c.hr_accountant_name == acc.name %}{% set _ = roles.append('Кадры') %}{% endif %}
           {{ roles|join(', ') or '—' }}
         </td>
+        {% endif %}
       </tr>
       {% endfor %}
       </tbody>
     </table>
+    </div>
     </div>
   </div>
 </div>

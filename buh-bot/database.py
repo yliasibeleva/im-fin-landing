@@ -262,6 +262,14 @@ def get_portal_stat(accountant_name: str) -> list:
         ).fetchall()
 
 
+def get_all_stat_2026() -> list:
+    """Вся статотчётность за 2026 (для контролёра)."""
+    with get_db() as conn:
+        return conn.execute(
+            "SELECT * FROM stat_reports WHERE year=2026 ORDER BY company_name, form_name"
+        ).fetchall()
+
+
 # ─── Компании ─────────────────────────────────────────────────────────────────
 
 def add_company(

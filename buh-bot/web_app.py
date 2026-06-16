@@ -8,6 +8,7 @@ import asyncio
 import io
 import os
 import secrets
+import socket
 from datetime import date
 try:
     import httpx as _httpx
@@ -32,6 +33,25 @@ db.ensure_accountant_tokens()  # генерируем токены для дос
 
 WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'admin')
 WEB_PORT     = int(os.getenv('WEB_PORT', '8000'))
+
+
+def _detect_server_base() -> str:
+    """Возвращает BASE_URL из .env или автоматически определяет LAN IP."""
+    from_env = os.getenv('BASE_URL', '').rstrip('/')
+    if from_env:
+        return from_env
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
+        lan_ip = s.getsockname()[0]
+        s.close()
+        return f'http://{lan_ip}:{WEB_PORT}'
+    except Exception:
+        return f'http://localhost:{WEB_PORT}'
+
+
+SERVER_BASE = _detect_server_base()
+print(f'[INFO] Портал доступен по адресу: {SERVER_BASE}')
 
 TG_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 TG_CHAT  = os.getenv('TELEGRAM_CHAT_ID', '')
@@ -228,8 +248,7 @@ async def today_page(request: Request, _=Depends(require_auth)):
 @app.get('/invite/{token}', response_class=HTMLResponse)
 async def invite_page(token: str, request: Request):
     acc = await _get_portal_accountant(token)
-    base_url = str(request.base_url).rstrip('/')
-    portal_url = f'{base_url}/portal/{token}'
+    portal_url = f'{SERVER_BASE}/portal/{token}'
     return templates.TemplateResponse(request=request, name='invite.html', context={
         'acc': acc,
         'portal_url': portal_url,
@@ -762,7 +781,7 @@ async def work_add(
 @app.get('/accountants', response_class=HTMLResponse)
 async def accountants_page(request: Request, _=Depends(require_auth)):
     accs = await asyncio.to_thread(db.get_all_accountants)
-    base_url = str(request.base_url).rstrip('/')
+    base_url = SERVER_BASE
     return templates.TemplateResponse(
         request=request, name='accountants.html',
         context={
@@ -1124,18 +1143,23 @@ async def stat_page(
                 "SELECT * FROM stat_reports WHERE year=2026 ORDER BY company_name, form_name"
             ).fetchall()
 
-    rows_raw = await asyncio.to_thread(_load)
-    all_rows = [dict(r) for r in rows_raw]
+    rows_raw, accountants_raw = await asyncio.gather(
+        asyncio.to_thread(_load),
+        asyncio.to_thread(db.get_all_accountants),
+    )
+    all_rows  = [dict(r) for r in rows_raw]
+    acc_names = {a['name'] for a in accountants_raw}
+    all_acc   = [a['name'] for a in accountants_raw]   # уже отсортированы по имени в БД
 
-    # Контроль по бухгалтерам (всегда по всем данным, без фильтра)
-    ctrl_map: dict = {}
+    # Контроль только по нашим бухгалтерам (не случайные имена из таблицы)
+    ctrl_map: dict = {n: {'name': n, 'total': 0, 'done': 0, 'pending': 0, 'conditional': 0, 'excluded': 0}
+                      for n in acc_names}
     for r in all_rows:
-        an = r['accountant_name'] or '—'
-        if an not in ctrl_map:
-            ctrl_map[an] = {'name': an, 'total': 0, 'done': 0, 'pending': 0, 'conditional': 0, 'excluded': 0}
-        ctrl_map[an]['total'] += 1
-        ctrl_map[an][r['status']] = ctrl_map[an].get(r['status'], 0) + 1
-    ctrl_rows = sorted(ctrl_map.values(), key=lambda x: x['name'])
+        an = r['accountant_name']
+        if an and an in ctrl_map:
+            ctrl_map[an]['total'] += 1
+            ctrl_map[an][r['status']] = ctrl_map[an].get(r['status'], 0) + 1
+    ctrl_rows = sorted([v for v in ctrl_map.values() if v['total'] > 0], key=lambda x: x['name'])
 
     rows = list(all_rows)
     if q:
@@ -1144,13 +1168,12 @@ async def stat_page(
                 or ql in (r['accountant_name'] or '').lower()
                 or ql in (r['inn'] or '').lower()]
     if acc:
-        rows = [r for r in rows if acc.lower() in (r['accountant_name'] or '').lower()]
+        rows = [r for r in rows if (r['accountant_name'] or '') == acc]
     if st:
         rows = [r for r in rows if r['status'] == st]
     if form:
         rows = [r for r in rows if form.lower() in (r['form_name'] or '').lower()]
 
-    all_acc   = sorted({r['accountant_name'] for r in all_rows if r['accountant_name']})
     all_forms = sorted({r['form_name'] for r in all_rows if r['form_name']})
 
     cnt = {
@@ -1522,6 +1545,9 @@ async def export_companies(
 _PAYROLL_RTYPES = frozenset({'6-НДФЛ', 'РСВ', 'ЕФС-1', 'Платёж СВ'})
 _HR_RTYPES      = frozenset({'Воинский учёт'})
 
+# Бухгалтеры с доступом ко всем данным во всех компаниях
+_PORTAL_SUPERVISORS = frozenset({'Сопова Юлия'})
+
 
 def _is_payroll_dl(d: dict) -> bool:
     rt = d.get('report_type', '')
@@ -1591,7 +1617,12 @@ async def portal_page(token: str, request: Request):
     acc = await _get_portal_accountant(token)
     today = date.today()
 
-    companies_raw  = await asyncio.to_thread(db.get_companies_for_portal, acc['id'])
+    is_supervisor = acc['name'] in _PORTAL_SUPERVISORS
+
+    if is_supervisor:
+        companies_raw = await asyncio.to_thread(db.get_all_companies)
+    else:
+        companies_raw = await asyncio.to_thread(db.get_companies_for_portal, acc['id'])
     companies = [dict(c) for c in companies_raw]
     company_ids = [c['id'] for c in companies]
 
@@ -1603,32 +1634,48 @@ async def portal_page(token: str, request: Request):
         dd['days_left'] = days_left(dd['due_date'])
         deadlines_all.append(dd)
 
-    deadlines = _filter_deadlines_by_role(deadlines_all, companies, acc['id'])
+    if is_supervisor:
+        deadlines = deadlines_all  # без фильтра по роли — вся налоговая отчётность
+    else:
+        deadlines = _filter_deadlines_by_role(deadlines_all, companies, acc['id'])
 
-    stat_raw  = await asyncio.to_thread(db.get_portal_stat, acc['name'])
+    if is_supervisor:
+        stat_raw = await asyncio.to_thread(db.get_all_stat_2026)
+    else:
+        stat_raw = await asyncio.to_thread(db.get_portal_stat, acc['name'])
     stat_rows = [dict(r) for r in stat_raw]
     stat_pending = [r for r in stat_rows if r['status'] in ('pending', 'conditional')]
 
-    # Задачи назначенные МНЕ (входящие от других + мои собственные)
-    tasks_raw = await asyncio.to_thread(db.get_tasks_for_accountant, acc['id'])
-    tasks_all_mine = [dict(t) for t in tasks_raw if dict(t).get('status') != 'done']
-    for t in tasks_all_mine:
-        t['due_fmt']   = fmt_date(t.get('due_date', ''))
-        t['days_left'] = days_left(t.get('due_date', ''))
-        t['is_incoming'] = (t.get('created_by_id') is not None and
-                            t.get('created_by_id') != acc['id'])
-    tasks_pending = tasks_all_mine  # алиас для счётчика
+    if is_supervisor:
+        all_tasks_raw = await asyncio.to_thread(db.get_all_tasks)
+        tasks_pending = [dict(t) for t in all_tasks_raw if t['status'] != 'done']
+        for t in tasks_pending:
+            t['due_fmt']   = fmt_date(t.get('due_date', ''))
+            t['days_left'] = days_left(t.get('due_date', ''))
+            t['is_incoming'] = True
+        tasks_outgoing = []
+    else:
+        tasks_raw = await asyncio.to_thread(db.get_tasks_for_accountant, acc['id'])
+        tasks_pending = [dict(t) for t in tasks_raw if t.get('status') != 'done']
+        for t in tasks_pending:
+            t['due_fmt']   = fmt_date(t.get('due_date', ''))
+            t['days_left'] = days_left(t.get('due_date', ''))
+            t['is_incoming'] = (t.get('created_by_id') is not None and
+                                t.get('created_by_id') != acc['id'])
+        outgoing_raw = await asyncio.to_thread(db.get_tasks_created_for_others, acc['id'])
+        tasks_outgoing = [dict(t) for t in outgoing_raw if t.get('status') != 'done']
+        for t in tasks_outgoing:
+            t['due_fmt']   = fmt_date(t.get('due_date', ''))
+            t['days_left'] = days_left(t.get('due_date', ''))
 
-    # Задачи которые Я передал другим (исходящие)
-    outgoing_raw = await asyncio.to_thread(db.get_tasks_created_for_others, acc['id'])
-    tasks_outgoing = [dict(t) for t in outgoing_raw if dict(t).get('status') != 'done']
-    for t in tasks_outgoing:
-        t['due_fmt']   = fmt_date(t.get('due_date', ''))
-        t['days_left'] = days_left(t.get('due_date', ''))
-
-    works_raw = await asyncio.to_thread(
-        db.get_additional_works_for_accountant, acc['id'], today.year, today.month
-    )
+    if is_supervisor:
+        works_raw = await asyncio.to_thread(
+            db.get_additional_works_for_month, today.year, today.month
+        )
+    else:
+        works_raw = await asyncio.to_thread(
+            db.get_additional_works_for_accountant, acc['id'], today.year, today.month
+        )
     works = [dict(w) for w in works_raw]
     works_total_amount = sum(w.get('amount') or 0 for w in works)
     works_total_hours  = sum(w.get('hours') or 0 for w in works)
@@ -1640,6 +1687,7 @@ async def portal_page(token: str, request: Request):
     return templates.TemplateResponse(request=request, name='portal.html', context={
         'acc': acc,
         'token': token,
+        'is_supervisor': is_supervisor,
         'companies': companies,
         'overdue': overdue,
         'today_dl': today_dl,

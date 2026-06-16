@@ -31,14 +31,19 @@
 <div class="container" style="max-width:720px;padding:2rem 1rem">
 
   {# Кнопки — только на экране, не при печати #}
-  <div class="no-print d-flex gap-2 mb-3">
-    <button onclick="window.print()" class="btn btn-success">
-      <i class="bi bi-file-earmark-pdf me-2"></i>Скачать / Распечатать PDF
+  <div class="no-print d-flex gap-2 mb-3 flex-wrap">
+    <button id="btnDownload" onclick="downloadPDF()" class="btn btn-success">
+      <i class="bi bi-download me-2"></i>Скачать PDF
+    </button>
+    <button onclick="window.print()" class="btn btn-outline-secondary">
+      <i class="bi bi-printer me-2"></i>Распечатать
     </button>
     <a href="/accountants" class="btn btn-outline-secondary">
       <i class="bi bi-arrow-left me-1"></i>Назад
     </a>
   </div>
+
+  <div id="pdf-content">
 
   {# Шапка #}
   <div class="header-block">
@@ -141,7 +146,28 @@
     Империя Финанс · Бухгалтерский аутсорсинг · {{ today }}
   </div>
 
+  </div>{# /pdf-content #}
+
 </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  const btn = document.getElementById('btnDownload');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Создаётся PDF...';
+  const element = document.getElementById('pdf-content');
+  html2pdf().set({
+    margin: [8, 8, 8, 8],
+    filename: 'instrukciya_{{ acc.name | replace(" ", "_") }}.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, logging: false },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(element).save().then(function() {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-download me-2"></i>Скачать PDF';
+  });
+}
+</script>
 </body>
 </html>
