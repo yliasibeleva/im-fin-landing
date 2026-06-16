@@ -373,9 +373,9 @@
         <td class="text-muted small">{{ r.period_desc or '—' }}</td>
         <td>
           {% if r.status == 'conditional' %}
-            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done"><button type="submit" class="btn btn-xs btn-outline-primary">При наличии — Сдано</button></form>
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done"><button type="submit" class="btn btn-xs btn-outline-primary" title="Нажать только если сдаёте этот отчёт">⬜ При наличии — нажать если сдано</button></form>
           {% else %}
-            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done"><button type="submit" class="btn btn-xs btn-success"><i class="bi bi-check-lg me-1"></i>Сдано</button></form>
+            <form method="post" action="/portal/{{ token }}/stat/{{ r.id }}/done"><button type="submit" class="btn btn-xs btn-warning text-dark" title="Нажать после отправки отчёта">· Не сдано</button></form>
           {% endif %}
         </td>
       </tr>
