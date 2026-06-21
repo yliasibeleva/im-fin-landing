@@ -1744,14 +1744,14 @@ async def portal_page(token: str, request: Request):
         tasks_outgoing = []
     else:
         tasks_raw = await asyncio.to_thread(db.get_tasks_for_accountant, acc['id'])
-        tasks_pending = [dict(t) for t in tasks_raw if t.get('status') != 'done']
+        tasks_pending = [dict(t) for t in tasks_raw if t['status'] != 'done']
         for t in tasks_pending:
             t['due_fmt']   = fmt_date(t.get('due_date', ''))
             t['days_left'] = days_left(t.get('due_date', ''))
             t['is_incoming'] = (t.get('created_by_id') is not None and
                                 t.get('created_by_id') != acc['id'])
         outgoing_raw = await asyncio.to_thread(db.get_tasks_created_for_others, acc['id'])
-        tasks_outgoing = [dict(t) for t in outgoing_raw if t.get('status') != 'done']
+        tasks_outgoing = [dict(t) for t in outgoing_raw if t['status'] != 'done']
         for t in tasks_outgoing:
             t['due_fmt']   = fmt_date(t.get('due_date', ''))
             t['days_left'] = days_left(t.get('due_date', ''))
