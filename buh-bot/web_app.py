@@ -959,13 +959,21 @@ async def tasks_page(
     status_f: Optional[str] = None,
     company: Optional[str] = None,
     priority: Optional[str] = None,
+    period: Optional[str] = None,
 ):
     today = date.today()
+    if not period:
+        period = today.strftime('%Y-%m')
+    t_year, t_month = int(period[:4]), int(period[5:7])
+
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
     companies_raw   = await asyncio.to_thread(db.get_all_companies)
 
     all_tasks_raw = await asyncio.to_thread(db.get_all_tasks)
     tasks = [dict(t) for t in all_tasks_raw]
+
+    # Фильтр по месяцу due_date
+    tasks = [t for t in tasks if (t.get('due_date') or '').startswith(period)]
 
     if acc:
         tasks = [t for t in tasks if str(t.get('accountant_id') or '') == acc]
@@ -985,6 +993,12 @@ async def tasks_page(
     if status_f:
         tasks = [t for t in tasks if t.get('status') == status_f]
 
+    # Навигация месяц ← →
+    pm = t_month - 1 if t_month > 1 else 12
+    py = t_year if t_month > 1 else t_year - 1
+    nm = t_month + 1 if t_month < 12 else 1
+    ny = t_year if t_month < 12 else t_year + 1
+
     return templates.TemplateResponse(request=request, name='tasks.html', context={
         'tasks':         tasks,
         'pending':       pending,
@@ -995,7 +1009,11 @@ async def tasks_page(
         'companies':     [dict(c) for c in companies_raw],
         'today':         today.strftime('%d.%m.%Y'),
         'today_iso':     today.isoformat(),
-        'filters':       {'acc': acc or '', 'status': status_f or '', 'company': company or '', 'priority': priority or ''},
+        'month_label':   f"{MONTHS_RU[t_month]} {t_year}",
+        'prev_period':   f"{py}-{pm:02d}",
+        'next_period':   f"{ny}-{nm:02d}",
+        'filters':       {'acc': acc or '', 'status': status_f or '', 'company': company or '',
+                          'priority': priority or '', 'period': period},
     })
 
 
@@ -1090,8 +1108,10 @@ async def works_page(
         by_acc[name]['amount'] += w.get('amount') or 0
     by_accountant = sorted(by_acc.values(), key=lambda x: -x['amount'])
 
-    MONTHS_RU_GEN = ['','января','февраля','марта','апреля','мая','июня',
-                     'июля','августа','сентября','октября','ноября','декабря']
+    pm = month - 1 if month > 1 else 12
+    py = year if month > 1 else year - 1
+    nm = month + 1 if month < 12 else 1
+    ny = year if month < 12 else year + 1
 
     return templates.TemplateResponse(request=request, name='works.html', context={
         'works':           works,
@@ -1105,6 +1125,8 @@ async def works_page(
         'today':           today.strftime('%d.%m.%Y'),
         'today_iso':       today.isoformat(),
         'month_label':     f"{MONTHS_RU[month]} {year}",
+        'prev_period':     f"{py}-{pm:02d}",
+        'next_period':     f"{ny}-{nm:02d}",
         'filters':         {'period': period, 'acc': acc or '', 'wtype': wtype or '', 'q': q or '', 'company': company or ''},
     })
 

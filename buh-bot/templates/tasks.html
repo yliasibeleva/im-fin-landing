@@ -2,7 +2,12 @@
 {% block title %}Задачи — Империя Финанс{% endblock %}
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0 fw-bold"><i class="bi bi-list-task me-2 text-primary"></i>Задачи</h4>
+  <div class="d-flex align-items-center gap-2">
+    <h4 class="mb-0 fw-bold"><i class="bi bi-list-task me-2 text-primary"></i>Задачи</h4>
+    <a href="/tasks?period={{ prev_period }}{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}" class="btn btn-sm btn-outline-secondary px-2" title="Предыдущий месяц"><i class="bi bi-chevron-left"></i></a>
+    <span class="fw-semibold text-primary" style="min-width:140px;text-align:center">{{ month_label }}</span>
+    <a href="/tasks?period={{ next_period }}{% if filters.acc %}&acc={{ filters.acc }}{% endif %}{% if filters.status %}&status={{ filters.status }}{% endif %}" class="btn btn-sm btn-outline-secondary px-2" title="Следующий месяц"><i class="bi bi-chevron-right"></i></a>
+  </div>
   <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addTaskModal"><i class="bi bi-plus-lg me-1"></i>Добавить задачу</button>
 </div>
 
@@ -10,6 +15,10 @@
 <div class="card mb-3">
   <div class="card-body py-2">
     <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Месяц</label>
+        <input type="month" name="period" class="form-control form-control-sm" value="{{ filters.period }}">
+      </div>
       <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
         <select name="acc" class="form-select form-select-sm">
@@ -87,16 +96,16 @@
 {# Табы #}
 <ul class="nav nav-tabs mb-3">
   <li class="nav-item"><a class="nav-link {% if filters.status=='pending' %}active{% endif %}"
-    href="/tasks?status=pending{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+    href="/tasks?period={{ filters.period }}&status=pending{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
     <i class="bi bi-exclamation-circle me-1"></i>Новые <span class="badge bg-warning text-dark">{{ pending|length }}</span></a></li>
   <li class="nav-item"><a class="nav-link {% if filters.status=='accepted' %}active{% endif %}"
-    href="/tasks?status=accepted{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+    href="/tasks?period={{ filters.period }}&status=accepted{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
     <i class="bi bi-hand-thumbs-up me-1"></i>Принято <span class="badge bg-info text-dark">{{ accepted|length }}</span></a></li>
   <li class="nav-item"><a class="nav-link {% if filters.status=='done' %}active{% endif %}"
-    href="/tasks?status=done{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
+    href="/tasks?period={{ filters.period }}&status=done{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
     <i class="bi bi-check2-circle me-1"></i>Выполнено <span class="badge bg-success">{{ done|length }}</span></a></li>
   <li class="nav-item"><a class="nav-link {% if not filters.status %}active{% endif %}"
-    href="/tasks{% if filters.acc %}?acc={{ filters.acc }}{% endif %}">
+    href="/tasks?period={{ filters.period }}{% if filters.acc %}&acc={{ filters.acc }}{% endif %}">
     <i class="bi bi-list me-1"></i>Все <span class="badge bg-secondary">{{ (pending|length) + (accepted|length) + (done|length) }}</span></a></li>
 </ul>
 
