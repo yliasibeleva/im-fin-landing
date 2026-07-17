@@ -972,8 +972,9 @@ async def tasks_page(
     all_tasks_raw = await asyncio.to_thread(db.get_all_tasks)
     tasks = [dict(t) for t in all_tasks_raw]
 
-    # Фильтр по месяцу due_date
-    tasks = [t for t in tasks if (t.get('due_date') or '').startswith(period)]
+    # Фильтр по месяцу due_date; задачи без даты показываем всегда
+    tasks = [t for t in tasks if
+             (t.get('due_date') or '').startswith(period) or not t.get('due_date')]
 
     if acc:
         tasks = [t for t in tasks if str(t.get('accountant_id') or '') == acc]
@@ -1097,10 +1098,12 @@ async def works_page(
     total_amount = sum(w.get('amount') or 0 for w in works)
     companies_count = len({w['company_id'] for w in works})
 
-    # Сводка по бухгалтерам
+    # Сводка по бухгалтерам (только записи с привязанным бухгалтером)
     by_acc: dict = {}
     for w in works:
-        name = w.get('accountant_name') or '— не указан —'
+        name = w.get('accountant_name')
+        if not name:
+            continue
         if name not in by_acc:
             by_acc[name] = {'name': name, 'cnt': 0, 'hours': 0, 'amount': 0}
         by_acc[name]['cnt']    += 1
