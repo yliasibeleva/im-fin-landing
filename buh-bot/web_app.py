@@ -534,6 +534,10 @@ async def reports_page(
             'due_label': due_lbl,
         })
 
+    # Скрываем квартальные группы где все записи уже done (архив)
+    active_pgs = {pg for (_, _, pg), d in qi.items() if d['status'] != 'done'}
+    q_col_defs = [c for c in q_col_defs if c['pg'] in active_pgs]
+
     # Группировка квартальных столбцов по периоду
     from collections import Counter
     pg_cnt = Counter(c['pg'] for c in q_col_defs)
