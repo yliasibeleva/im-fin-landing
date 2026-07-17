@@ -44,6 +44,7 @@
       <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Статус</label>
         <select name="st" class="form-select form-select-sm">
+          <option value="active"      {% if filters.st=='active'      %}selected{% endif %}>Активные</option>
           <option value="">Все</option>
           <option value="pending"     {% if filters.st=='pending'     %}selected{% endif %}>Ожидание</option>
           <option value="done"        {% if filters.st=='done'        %}selected{% endif %}>Сдано</option>

@@ -1188,6 +1188,10 @@ async def stat_page(
             ctrl_map[an][r['status']] = ctrl_map[an].get(r['status'], 0) + 1
     ctrl_rows = sorted([v for v in ctrl_map.values() if v['total'] > 0], key=lambda x: x['name'])
 
+    # По умолчанию показываем только активные (не архив)
+    if st is None:
+        st = 'active'
+
     rows = list(all_rows)
     if q:
         ql = q.lower()
@@ -1196,7 +1200,9 @@ async def stat_page(
                 or ql in (r['inn'] or '').lower()]
     if acc:
         rows = [r for r in rows if (r['accountant_name'] or '') == acc]
-    if st:
+    if st == 'active':
+        rows = [r for r in rows if r['status'] in ('pending', 'conditional')]
+    elif st:
         rows = [r for r in rows if r['status'] == st]
     if form:
         rows = [r for r in rows if form.lower() in (r['form_name'] or '').lower()]
@@ -1214,7 +1220,7 @@ async def stat_page(
     return templates.TemplateResponse(request=request, name='stat.html', context={
         'rows': rows, 'cnt': cnt, 'ctrl_rows': ctrl_rows,
         'all_acc': all_acc, 'all_forms': all_forms,
-        'filters': {'q': q or '', 'acc': acc or '', 'st': st or '', 'form': form or ''},
+        'filters': {'q': q or '', 'acc': acc or '', 'st': st, 'form': form or ''},
         'today': date.today().strftime('%d.%m.%Y'),
     })
 
