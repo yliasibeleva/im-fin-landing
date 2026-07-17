@@ -256,7 +256,7 @@ def get_portal_stat(accountant_name: str) -> list:
     with get_db() as conn:
         return conn.execute(
             """SELECT * FROM stat_reports
-               WHERE year=2026 AND accountant_name=?
+               WHERE year=2026 AND accountant_name=? AND form_name != ''
                ORDER BY company_name, form_name""",
             (accountant_name,)
         ).fetchall()
@@ -266,7 +266,7 @@ def get_all_stat_2026() -> list:
     """Вся статотчётность за 2026 (для контролёра)."""
     with get_db() as conn:
         return conn.execute(
-            "SELECT * FROM stat_reports WHERE year=2026 ORDER BY company_name, form_name"
+            "SELECT * FROM stat_reports WHERE year=2026 AND form_name != '' ORDER BY company_name, form_name"
         ).fetchall()
 
 
