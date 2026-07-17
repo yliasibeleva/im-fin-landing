@@ -8,10 +8,10 @@
   .rep-done    { background: #d4edda !important; color: #155724; text-align: center; }
   .rep-overdue { background: #f8d7da !important; color: #721c24; text-align: center; }
   .rep-2days   { background: #fff3cd !important; color: #856404; text-align: center; }
-  .rep-ok      { background: #fff;               color: #aaa;    text-align: center; }
+  .rep-ok      { background: #eaf4ff;             color: #5b9bd5; text-align: center; }
   .rep-na      { background: #f8f9fa;             color: #ddd;    text-align: center; }
-  .rep-btn     { border: none; background: none; cursor: pointer; padding: 1px 3px; line-height: 1; border-radius: 3px; }
-  .rep-btn:hover { opacity: .7; }
+  .rep-btn     { border: none; background: none; cursor: pointer; padding: 2px 4px; line-height: 1; border-radius: 3px; font-size: .95em; }
+  .rep-btn:hover { background: rgba(0,0,0,.08); opacity: 1; }
   .hdr-q1  { background: #cfe2ff !important; }
   .hdr-q2  { background: #d1f0e8 !important; }
   .hdr-q3  { background: #fde8d0 !important; }
@@ -59,8 +59,8 @@
       <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Статус</label>
         <select name="st" class="form-select form-select-sm">
+          <option value="pending" {% if filters.st=='pending' or not filters.st %}selected{% endif %}>Есть несданные</option>
           <option value="">Все компании</option>
-          <option value="pending" {% if filters.st=='pending' %}selected{% endif %}>Есть несданные</option>
           <option value="done"    {% if filters.st=='done'    %}selected{% endif %}>Все сдано</option>
         </select>
       </div>
@@ -146,7 +146,7 @@
           <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} — срок {{ cell.due }}">
             <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
               <button type="submit" class="rep-btn" title="Отметить сданным">
-                {% if cell.urgency == 'overdue' %}<span class="text-danger fw-bold">!</span>{% elif cell.urgency == '2days' %}<span style="color:#856404">⚠</span>{% else %}<span class="text-muted">·</span>{% endif %}
+                {% if cell.urgency == 'overdue' %}<span class="text-danger fw-bold">!</span>{% elif cell.urgency == '2days' %}<span style="color:#856404">⚠</span>{% else %}<span style="color:#5b9bd5;font-size:1em">□</span>{% endif %}
               </button>
             </form>
           </td>

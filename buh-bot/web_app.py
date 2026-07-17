@@ -447,7 +447,7 @@ async def reports_page(
     year: Optional[str] = None,
     acc: Optional[str] = None,
     org_type: Optional[str] = None,
-    st: Optional[str] = None,
+    st: Optional[str] = 'pending',
 ):
     from datetime import timedelta
     today     = date.today()
