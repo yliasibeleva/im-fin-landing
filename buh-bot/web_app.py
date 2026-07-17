@@ -407,7 +407,7 @@ _TYPE_SHORT = {
 
 # Группы отчётных периодов (правильные названия: в апреле сдаём I кв. и т.д.)
 _PERIOD_GROUPS = [
-    ('q1', 'I квартал',  lambda p: 'I кв.' in (p or '') and '—' not in (p or '')),
+    ('q1', 'I квартал',  lambda p: (p or '').startswith('I кв.') and '—' not in (p or '')),
     ('q2', 'Полугодие',  lambda p: ('II кв.' in (p or '') or 'Пол.' in (p or '')) and '—' not in (p or '')),
     ('q3', '9 месяцев',  lambda p: 'III кв.' in (p or '') or '9 мес.' in (p or '')),
     ('q4', 'IV квартал', lambda p: 'IV кв.' in (p or '') and '—' not in (p or '')),
