@@ -647,7 +647,7 @@ def get_today_summary(days_ahead: int = 3) -> dict:
                JOIN companies c ON rd.company_id = c.id
                LEFT JOIN accountants a1 ON c.accountant_id = a1.id
                LEFT JOIN accountants a2 ON c.payroll_accountant_id = a2.id
-               WHERE rd.status != 'done' AND rd.due_date <= ? AND c.is_active=1
+               WHERE rd.status NOT IN ('done','na') AND rd.due_date <= ? AND c.is_active=1
                ORDER BY rd.due_date, c.name""",
             (soon_s,)
         ).fetchall()

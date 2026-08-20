@@ -1,16 +1,12 @@
 @echo off
 chcp 65001 >nul
 pushd "%~dp0"
-echo ===========================================
-echo  Империя PRO - Дашборд
-echo  Не закрывайте это окно!
-echo ===========================================
-echo.
-echo Запуск сервера..
+title IMPERIA PRO
+python _get_tokens.py
+start "Tunnel" /min python tunnel_monitor.py
+timeout /t 3 >nul
 start "" "http://localhost:8000"
-:loop
+:server_loop
 python web_app.py
-echo.
-echo Сервер остановлен. Перезапуск через 5 секунд..
 timeout /t 5 >nul
-goto loop
+goto server_loop

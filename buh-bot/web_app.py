@@ -31,15 +31,44 @@ load_dotenv()
 db.init_db()  # применяем миграции при старте
 db.ensure_accountant_tokens()  # генерируем токены для доступа бухгалтеров
 
+# Записываем токены в _tokens.txt при каждом старте + выполняем отложенные операции
+try:
+    import sqlite3 as _sq3
+    _tok_db = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data_storage', 'buh_bot.db')
+    _tc = _sq3.connect(_tok_db)
+    # Токены бухгалтеров
+    _trows = _tc.execute('SELECT name, access_token FROM accountants ORDER BY id').fetchall()
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), '_tokens.txt'), 'w', encoding='utf-8') as _tf:
+        for _tr in _trows:
+            _tf.write(f"{_tr[0]}|{_tr[1]}\n")
+    # Деактивация выбывших клиентов
+    _del_patterns = ['%рылев%', '%усатов%', '%уру М%', '%уру м%', '%убьянов%', '%убянов%']
+    for _dp in _del_patterns:
+        _tc.execute("UPDATE companies SET is_active=0 WHERE name LIKE ? AND is_active=1", (_dp,))
+    _tc.commit()
+    _tc.close()
+except Exception:
+    pass
+
 WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'admin')
 WEB_PORT     = int(os.getenv('WEB_PORT', '8000'))
 
 
 def _detect_server_base() -> str:
-    """Возвращает BASE_URL из .env или автоматически определяет LAN IP."""
+    """Возвращает BASE_URL: .env → tunnel_url.txt → auto LAN IP."""
     from_env = os.getenv('BASE_URL', '').rstrip('/')
     if from_env:
         return from_env
+    # Туннельный URL (cloudflare/ngrok) — пишется запустить_с_интернетом.py
+    _tunnel_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tunnel_url.txt')
+    try:
+        if os.path.exists(_tunnel_file):
+            _url = open(_tunnel_file, encoding='utf-8').read().strip()
+            if _url.startswith('http'):
+                return _url
+    except Exception:
+        pass
+    # Автоопределение LAN IP
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))
@@ -52,6 +81,18 @@ def _detect_server_base() -> str:
 
 SERVER_BASE = _detect_server_base()
 print(f'[INFO] Портал доступен по адресу: {SERVER_BASE}')
+
+_TUNNEL_URL_FILE = os.path.join(os.path.dirname(__file__), 'tunnel_url.txt')
+
+def get_base_url() -> str:
+    """Публичный URL: сначала tunnel_url.txt, иначе LAN IP."""
+    try:
+        url = open(_TUNNEL_URL_FILE).read().strip()
+        if url.startswith('https://'):
+            return url
+    except Exception:
+        pass
+    return SERVER_BASE
 
 TG_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
 TG_CHAT  = os.getenv('TELEGRAM_CHAT_ID', '')
@@ -250,7 +291,7 @@ async def today_page(request: Request, _=Depends(require_auth)):
 @app.get('/invite/{token}', response_class=HTMLResponse)
 async def invite_page(token: str, request: Request):
     acc = await _get_portal_accountant(token)
-    portal_url = f'{SERVER_BASE}/portal/{token}'
+    portal_url = f'{get_base_url()}/portal/{token}'
     return templates.TemplateResponse(request=request, name='invite.html', context={
         'acc': acc,
         'portal_url': portal_url,
@@ -448,12 +489,16 @@ async def reports_page(
     acc: Optional[str] = None,
     org_type: Optional[str] = None,
     st: Optional[str] = 'pending',
+    pf: Optional[str] = None,
 ):
     from datetime import timedelta
     today     = date.today()
     yr        = int(year) if year else today.year
     today_iso = today.isoformat()
-    in2       = (today + timedelta(days=2)).isoformat()
+    in3       = (today + timedelta(days=3)).isoformat()
+
+    # Генерируем дедлайны для новых компаний (без дедлайнов за этот год)
+    await asyncio.to_thread(db.generate_deadlines_for_all, yr)
 
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
     companies_raw   = await asyncio.to_thread(db.get_all_companies)
@@ -467,11 +512,14 @@ async def reports_page(
     def _prio(x):
         if x['status'] == 'done': return 0
         return {'overdue': 3, '2days': 2, 'ok': 1}.get(
-            _urgency(x['due_date'], today_iso, in2), 1)
+            _urgency(x['due_date'], today_iso, in3), 1)
 
     def _build_cell(d):
-        urg = 'done' if d['status'] == 'done' else _urgency(d['due_date'], today_iso, in2)
-        return {'status': d['status'], 'due': d['due_date'][:10],
+        st = d['status']
+        if st == 'done':   urg = 'done'
+        elif st == 'na':   urg = 'na'
+        else:              urg = _urgency(d['due_date'], today_iso, in3)
+        return {'status': st, 'due': d['due_date'][:10],
                 'id': d['id'], 'urgency': urg, 'name': d['report_name']}
 
     # ── Индексы ───────────────────────────────────────────────────────────────
@@ -573,6 +621,18 @@ async def reports_page(
     all_col_defs = [{'section': 'q', **c} for c in q_col_defs] + \
                    [{'section': 'm', **c} for c in m_col_defs]
 
+    # Фильтр по выбранному периоду (pf)
+    _PF_MONTHS = {'q2': {4, 5, 6}, 'q3': {7, 8, 9}, 'q4': {10, 11, 12}}
+    if pf and pf not in ('m', 'yr'):
+        _ms = _PF_MONTHS.get(pf, set())
+        all_col_defs = [c for c in all_col_defs if
+                        (c['section'] == 'q' and c.get('pg') == pf) or
+                        (c['section'] == 'm' and c.get('month_num') in _ms)]
+    elif pf == 'yr':
+        all_col_defs = [c for c in all_col_defs if c['section'] == 'q' and c.get('pg') == 'yr']
+    elif pf == 'm':
+        all_col_defs = [c for c in all_col_defs if c['section'] == 'm']
+
     # ── Фильтрация компаний ───────────────────────────────────────────────────
     companies = [dict(c) for c in companies_raw]
     if acc:
@@ -598,12 +658,12 @@ async def reports_page(
     # ── Фильтр по статусу ────────────────────────────────────────────────────
     if st == 'pending':
         companies = [c for c in companies
-                     if any(v and v['status'] != 'done'
+                     if any(v and v['status'] not in ('done', 'na')
                             for v in matrix[str(c['id'])].values())]
         matrix = {str(c['id']): matrix[str(c['id'])] for c in companies}
     elif st == 'done':
         companies = [c for c in companies
-                     if all(v is None or v['status'] == 'done'
+                     if all(v is None or v['status'] in ('done', 'na')
                             for v in matrix[str(c['id'])].values())]
         matrix = {str(c['id']): matrix[str(c['id'])] for c in companies}
 
@@ -616,10 +676,17 @@ async def reports_page(
     pct_done    = round(done_cnt / len(all_cells) * 100) if all_cells else 0
 
     # Заголовок: квартальные группы + ежемесячные группы
-    header_groups = [(pg, PG_LABELS.get(pg, pg), pg_cnt[pg], 'q')
-                     for pg in PG_ORDER if pg_cnt.get(pg)] + \
-                    [(f'm{mo}', _MONTHS_RU.get(mo, str(mo)), len(m_types), 'm')
-                     for mo in m_months if m_types]
+    # Перестраиваем header_groups из реально отображаемых столбцов
+    _pg_cnt_f = Counter(c['pg'] for c in all_col_defs if c['section'] == 'q')
+    _mo_cnt_f: dict = {}
+    for _c in all_col_defs:
+        if _c['section'] == 'm':
+            _mo = _c['month_num']
+            _mo_cnt_f[_mo] = _mo_cnt_f.get(_mo, 0) + 1
+    header_groups = [(p, PG_LABELS.get(p, p), _pg_cnt_f[p], 'q')
+                     for p in PG_ORDER if _pg_cnt_f.get(p)] + \
+                    [(f'm{_mo}', _MONTHS_RU.get(_mo, str(_mo)), cnt, 'm')
+                     for _mo, cnt in sorted(_mo_cnt_f.items())]
 
     return templates.TemplateResponse(request=request, name='reports.html', context={
         'all_col_defs':   all_col_defs,
@@ -635,7 +702,7 @@ async def reports_page(
         'accountants':    [dict(a) for a in accountants_raw],
         'year':           yr,
         'years':          list(range(today.year - 1, today.year + 2)),
-        'filters':        {'acc': acc or '', 'org_type': org_type or '', 'st': st or ''},
+        'filters':        {'acc': acc or '', 'org_type': org_type or '', 'st': st or '', 'pf': pf or ''},
     })
 
 
@@ -650,7 +717,7 @@ async def reports_list_page(
     today    = date.today()
     yr       = int(year) if year else today.year
     today_iso = today.isoformat()
-    in2      = (today + timedelta(days=2)).isoformat()
+    in3      = (today + timedelta(days=3)).isoformat()
 
     accountants_raw = await asyncio.to_thread(db.get_all_accountants)
     deadlines_raw   = await asyncio.to_thread(
@@ -667,7 +734,7 @@ async def reports_list_page(
             d['urgency'] = 'done'
         elif due < today_iso:
             d['urgency'] = 'overdue'
-        elif due <= in2:
+        elif due <= in3:
             d['urgency'] = '2days'
         else:
             d['urgency'] = 'ok'
@@ -738,6 +805,30 @@ async def report_undone(deadline_id: int, _=Depends(require_auth)):
     return RedirectResponse('/reports', status_code=303)
 
 
+@app.post('/reports/{deadline_id}/na')
+async def report_na(deadline_id: int, _=Depends(require_auth)):
+    def _set_na():
+        with db.get_db() as conn:
+            conn.execute(
+                "UPDATE report_deadlines SET status='na', completed_at=NULL WHERE id=?",
+                (deadline_id,)
+            )
+    await asyncio.to_thread(_set_na)
+    return RedirectResponse('/reports', status_code=303)
+
+
+@app.post('/reports/{deadline_id}/unna')
+async def report_unna(deadline_id: int, _=Depends(require_auth)):
+    def _reset_na():
+        with db.get_db() as conn:
+            conn.execute(
+                "UPDATE report_deadlines SET status='pending', completed_at=NULL WHERE id=?",
+                (deadline_id,)
+            )
+    await asyncio.to_thread(_reset_na)
+    return RedirectResponse('/reports', status_code=303)
+
+
 # ─── Дедлайны ─────────────────────────────────────────────────────────────────
 
 @app.post('/company/{company_id}/deadline/{deadline_id}/done')
@@ -787,7 +878,7 @@ async def work_add(
 @app.get('/accountants', response_class=HTMLResponse)
 async def accountants_page(request: Request, _=Depends(require_auth)):
     accs = await asyncio.to_thread(db.get_all_accountants)
-    base_url = SERVER_BASE
+    base_url = get_base_url()
     return templates.TemplateResponse(
         request=request, name='accountants.html',
         context={

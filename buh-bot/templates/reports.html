@@ -10,8 +10,10 @@
   .rep-2days   { background: #fff3cd !important; color: #856404; text-align: center; }
   .rep-ok      { background: #eaf4ff;             color: #5b9bd5; text-align: center; }
   .rep-na      { background: #f8f9fa;             color: #ddd;    text-align: center; }
-  .rep-btn     { border: none; background: none; cursor: pointer; padding: 2px 4px; line-height: 1; border-radius: 3px; font-size: .95em; }
-  .rep-btn:hover { background: rgba(0,0,0,.08); opacity: 1; }
+  .rep-btn     { border: none; background: none; cursor: pointer; padding: 2px 3px; line-height: 1; border-radius: 3px; font-size: .95em; }
+  .rep-btn:hover { background: rgba(0,0,0,.1); }
+  .rep-na-set  { background: #f0f0f0; color: #999; text-align: center; }
+  .cell-btns   { display: flex; gap: 1px; justify-content: center; align-items: center; }
   .hdr-q1  { background: #cfe2ff !important; }
   .hdr-q2  { background: #d1f0e8 !important; }
   .hdr-q3  { background: #fde8d0 !important; }
@@ -22,6 +24,7 @@
   .sticky-l2   { position: sticky; left: 130px; z-index: 2; background: #fff; min-width: 110px; }
   .sticky-l3   { position: sticky; left: 240px; z-index: 2; background: #fff; min-width: 70px; }
   .hscroll     { overflow-x: auto; }
+  .cell-date   { display: block; font-size: .58rem; line-height: 1; margin-top: 1px; opacity: .85; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
@@ -41,11 +44,26 @@
 <div class="card mb-3">
   <div class="card-body py-2">
     <form method="get" class="row g-2 align-items-end">
+      <div class="col-sm-3">
+        <label class="form-label mb-1 small fw-semibold">Поиск компании</label>
+        <input id="company-search" type="text" class="form-control form-control-sm" placeholder="Название..." autocomplete="off">
+      </div>
       <div class="col-sm-2">
         <label class="form-label mb-1 small fw-semibold">Бухгалтер</label>
         <select name="acc" class="form-select form-select-sm">
           <option value="">Все</option>
           {% for a in accountants %}<option value="{{ a.id }}" {% if filters.acc == a.id|string %}selected{% endif %}>{{ a.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-2">
+        <label class="form-label mb-1 small fw-semibold">Период</label>
+        <select name="pf" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value=""   {% if not filters.pf %}selected{% endif %}>Все периоды</option>
+          <option value="q2" {% if filters.pf=='q2' %}selected{% endif %}>Полугодие</option>
+          <option value="q3" {% if filters.pf=='q3' %}selected{% endif %}>9 месяцев</option>
+          <option value="q4" {% if filters.pf=='q4' %}selected{% endif %}>IV квартал</option>
+          <option value="yr" {% if filters.pf=='yr' %}selected{% endif %}>Годовые</option>
+          <option value="m"  {% if filters.pf=='m'  %}selected{% endif %}>Ежемесячные</option>
         </select>
       </div>
       <div class="col-sm-2">
@@ -71,8 +89,8 @@
       <div class="col d-flex align-items-end gap-3 small flex-wrap">
         <span class="text-success fw-semibold">✓ Сдано</span>
         <span class="text-danger">! Просрочено</span>
-        <span style="color:#856404">⚠ 2 дня</span>
-        <span class="text-muted">· Ожидание</span>
+        <span style="color:#856404">⚠ ≤ 3 дней</span>
+        <span class="text-muted">□ Ожидание</span>
         <span class="text-muted">— Не применимо</span>
         <span class="text-muted fst-italic">(нажмите символ для смены статуса)</span>
       </div>
@@ -137,18 +155,36 @@
         {% if cell is none %}
           <td class="rep-na">—</td>
         {% elif cell.urgency == 'done' %}
-          <td class="rep-done" title="{{ cell.name }} — сдано">
-            <form method="post" action="/reports/{{ cell.id }}/undone" style="display:inline">
-              <button type="submit" class="rep-btn text-success fw-bold" title="Сдано — нажать чтобы отменить">✓</button>
+          <td class="rep-done" title="{{ cell.name }} сдано">
+            <div class="cell-btns">
+              <form method="post" action="/reports/{{ cell.id }}/undone" style="display:inline">
+                <button type="submit" class="rep-btn text-success fw-bold" title="Отменить">✓</button>
+              </form>
+              <form method="post" action="/reports/{{ cell.id }}/na" style="display:inline">
+                <button type="submit" class="rep-btn text-muted" title="Прочерк" style="font-size:.8em;opacity:.45">—</button>
+              </form>
+            </div>
+          </td>
+        {% elif cell.urgency == 'na' %}
+          <td class="rep-na-set" title="{{ cell.name }} — прочерк">
+            <form method="post" action="/reports/{{ cell.id }}/unna" style="display:inline">
+              <button type="submit" class="rep-btn" title="Убрать прочерк">—</button>
             </form>
           </td>
         {% else %}
-          <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} — срок {{ cell.due }}">
-            <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
-              <button type="submit" class="rep-btn" title="Отметить сданным">
-                {% if cell.urgency == 'overdue' %}<span class="text-danger fw-bold">!</span>{% elif cell.urgency == '2days' %}<span style="color:#856404">⚠</span>{% else %}<span style="color:#5b9bd5;font-size:1em">□</span>{% endif %}
-              </button>
-            </form>
+          <td class="rep-{{ cell.urgency }}" title="{{ cell.name }} срок {{ cell.due[8:10] }}.{{ cell.due[5:7] }}">
+            <div class="cell-btns">
+              <form method="post" action="/reports/{{ cell.id }}/done" style="display:inline">
+                <button type="submit" class="rep-btn" title="Сдано">
+                  {% if cell.urgency == 'overdue' %}<span class="text-danger fw-bold">!</span><span class="cell-date">{{ cell.due[8:10] }}.{{ cell.due[5:7] }}</span>
+                  {% elif cell.urgency == '2days' %}<span style="color:#856404">⚠</span><span class="cell-date">{{ cell.due[8:10] }}.{{ cell.due[5:7] }}</span>
+                  {% else %}<span style="color:#5b9bd5">□</span>{% endif %}
+                </button>
+              </form>
+              <form method="post" action="/reports/{{ cell.id }}/na" style="display:inline">
+                <button type="submit" class="rep-btn text-muted" title="Прочерк" style="font-size:.8em;opacity:.5">—</button>
+              </form>
+            </div>
           </td>
         {% endif %}
         {% endfor %}
@@ -160,4 +196,65 @@
 </div>
 
 {% endif %}
+
+<script>
+// Поиск по компании
+document.getElementById('company-search').addEventListener('input', function() {
+  const q = this.value.toLowerCase().trim();
+  document.querySelectorAll('.rep-table tbody tr').forEach(tr => {
+    const name = tr.querySelector('.sticky-left')?.textContent.toLowerCase() || '';
+    tr.style.display = (!q || name.includes(q)) ? '' : 'none';
+  });
+});
+
+// AJAX для кнопок статуса — без перезагрузки страницы
+function attachRepForms() {
+  document.querySelectorAll('.rep-table td form').forEach(form => {
+    if (form.dataset.ajax) return;
+    form.dataset.ajax = '1';
+    form.addEventListener('submit', async function(e) {
+      e.preventDefault();
+      const td = this.closest('td');
+      const action = this.action;
+      td.style.opacity = '0.4';
+      try {
+        await fetch(action, {method: 'POST', redirect: 'manual'});
+      } catch(_) {}
+
+      // Определяем новое состояние ячейки
+      const id = action.match(/\/reports\/(\d+)\//)?.[1];
+      if (!id) { location.reload(); return; }
+
+      if (action.endsWith('/done')) {
+        td.className = 'rep-done';
+        td.innerHTML = `<div class="cell-btns">
+          <form method="post" action="/reports/${id}/undone" style="display:inline">
+            <button type="submit" class="rep-btn text-success fw-bold" title="Отменить">✓</button></form>
+          <form method="post" action="/reports/${id}/na" style="display:inline">
+            <button type="submit" class="rep-btn text-muted" title="Прочерк" style="font-size:.8em;opacity:.45">—</button></form>
+          </div>`;
+      } else if (action.endsWith('/undone') || action.endsWith('/unna')) {
+        // Нужно знать оригинальный статус — проще перегрузить только данные
+        // Восстанавливаем как «ожидание»
+        td.className = 'rep-ok';
+        td.innerHTML = `<div class="cell-btns">
+          <form method="post" action="/reports/${id}/done" style="display:inline">
+            <button type="submit" class="rep-btn" title="Сдано"><span style="color:#5b9bd5">□</span></button></form>
+          <form method="post" action="/reports/${id}/na" style="display:inline">
+            <button type="submit" class="rep-btn text-muted" title="Прочерк" style="font-size:.8em;opacity:.5">—</button></form>
+          </div>`;
+      } else if (action.endsWith('/na')) {
+        td.className = 'rep-na-set';
+        td.innerHTML = `<form method="post" action="/reports/${id}/unna" style="display:inline">
+          <button type="submit" class="rep-btn" title="Убрать прочерк">—</button></form>`;
+      }
+
+      td.style.opacity = '1';
+      attachRepForms(); // перепривязать новые формы
+    });
+  });
+}
+
+attachRepForms();
+</script>
 {% endblock %}
