@@ -61,7 +61,8 @@ def send_telegram(url):
         req.post(
             f'https://api.telegram.org/bot{token}/sendMessage',
             json={'chat_id': chat, 'text': msg, 'parse_mode': 'HTML'},
-            timeout=15
+            timeout=15,
+            proxies={}          # обходим системный SOCKS-прокси
         )
         print('[launcher] Telegram: отправлено ✓')
     except Exception as e:
