@@ -7,6 +7,9 @@ URL всегда один: https://imperiacrm.serveo.net
 """
 import subprocess, re, time, os, sys, sqlite3, threading
 
+# UTF-8 вывод через переменную окружения (не reconfigure — он глушит flush)
+os.environ.setdefault('PYTHONUTF8', '1')
+
 BASE     = os.path.dirname(os.path.abspath(__file__))
 CF       = os.path.join(BASE, 'cloudflared.exe')
 CF_LOG   = os.path.join(BASE, 'tunnel.log')
@@ -22,11 +25,16 @@ def _tg_creds():
     try:
         sys.path.insert(0, BASE)
         import config
-        token = (getattr(config, 'TG_TOKEN', '')
-                 or getattr(config, 'TELEGRAM_TOKEN', '')
-                 or getattr(config, 'TELEGRAM_BOT_TOKEN', ''))
-        chat  = (getattr(config, 'TG_CHAT', '')
-                 or getattr(config, 'TELEGRAM_CHAT_ID', ''))
+        token = (getattr(config, 'BOT_TOKEN', '')
+                 or getattr(config, 'TG_TOKEN', '')
+                 or getattr(config, 'TELEGRAM_TOKEN', ''))
+        # Чат: группа бухгалтеров → первый admin → env TG_CHAT
+        chat = (getattr(config, 'ACCOUNTANTS_GROUP_ID', '') or '')
+        if not chat:
+            admin_ids = getattr(config, 'ADMIN_IDS', [])
+            chat = admin_ids[0] if admin_ids else ''
+        if not chat:
+            chat = os.getenv('TG_CHAT', '')
         return token, chat
     except Exception:
         return '', ''
@@ -119,12 +127,21 @@ def start_serveo():
     deadline = time.time() + 20
     for line in proc.stdout:
         print(f'  {line.rstrip()}')
-        if 'Forwarding HTTP' in line or 'serveo.net' in line:
-            m = re.search(r'https://[a-zA-Z0-9\-]+\.serveo\.net', line)
+        if 'Forwarding HTTP' in line:
+            # serveo даёт URL на serveousercontent.com (без регистрации)
+            # или на imperiacrm.serveo.net (после регистрации SSH-ключа)
+            m = re.search(r'https://[a-zA-Z0-9\-]+\.serveo(?:usercontent)?\.(?:net|com)', line)
             if m:
                 url = m.group()
                 break
-        if 'denied' in line.lower() or 'error' in line.lower():
+        # Подсказка — ссылка для регистрации SSH-ключа (нужна 1 раз)
+        if 'console.serveo.net/ssh/keys' in line:
+            reg_url = re.search(r'https://\S+', line)
+            if reg_url:
+                print(f'[launcher] Для ПОСТОЯННОГО поддомена зарегистрируй SSH-ключ:')
+                print(f'  {reg_url.group()}')
+        if 'denied' in line.lower() or 'taken' in line.lower():
+            print(f'[launcher] serveo: {line.rstrip()}')
             break
         if time.time() > deadline:
             break
