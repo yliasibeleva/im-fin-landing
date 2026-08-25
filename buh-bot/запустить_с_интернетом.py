@@ -5,7 +5,7 @@
 URL всегда один: https://imperiacrm.serveo.net
 (при первом запуске поддомен закрепляется за вашим SSH-ключом)
 """
-import subprocess, re, time, os, sys, sqlite3, threading
+import subprocess, re, time, os, sys, sqlite3, threading, socket
 
 # UTF-8 вывод через переменную окружения (не reconfigure — он глушит flush)
 os.environ.setdefault('PYTHONUTF8', '1')
@@ -15,6 +15,7 @@ CF       = os.path.join(BASE, 'cloudflared.exe')
 CF_LOG   = os.path.join(BASE, 'tunnel.log')
 URL_FILE = os.path.join(BASE, 'tunnel_url.txt')
 DB       = os.path.join(BASE, 'data_storage', 'buh_bot.db')
+PIDFILE  = os.path.join(BASE, 'launcher.pid')
 
 SERVEO_SUBDOMAIN = 'imperiacrm'          # поддомен serveo — фиксированный
 SERVEO_URL       = f'https://{SERVEO_SUBDOMAIN}.serveo.net'
@@ -81,8 +82,33 @@ def _start_web():
 
 # ── Kill old processes ────────────────────────────────────────────────────────
 
+def _port_free(port=8000):
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(('127.0.0.1', port))
+        s.close()
+        return True
+    except OSError:
+        return False
+
 def _kill_old():
+    # Убить предыдущий экземпляр лаунчера по PID-файлу
+    if os.path.exists(PIDFILE):
+        try:
+            old_pid = int(open(PIDFILE).read().strip())
+            subprocess.run(['taskkill', '/F', '/PID', str(old_pid)], capture_output=True)
+            print(f'[launcher] Убит старый лаунчер PID={old_pid}')
+        except Exception:
+            pass
+
+    # Записываем свой PID
+    with open(PIDFILE, 'w') as f:
+        f.write(str(os.getpid()))
+
+    # Убить cloudflared и ssh-туннели
     subprocess.run(['taskkill', '/F', '/IM', 'cloudflared.exe'], capture_output=True)
+
+    # Убить процесс на порту 8000
     try:
         out = subprocess.check_output(
             ['netstat', '-ano'], text=True, encoding='cp866', errors='ignore'
@@ -94,10 +120,19 @@ def _kill_old():
                 if parts:
                     pids.add(parts[-1])
         for pid in pids:
-            subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
+            if pid != str(os.getpid()):
+                subprocess.run(['taskkill', '/F', '/PID', pid], capture_output=True)
+                print(f'[launcher] Убит процесс на порту 8000, PID={pid}')
     except Exception:
         pass
-    time.sleep(1)
+
+    # Ждём пока порт освободится (до 8 сек)
+    for i in range(8):
+        if _port_free():
+            break
+        time.sleep(1)
+    else:
+        print('[launcher] Предупреждение: порт 8000 всё ещё занят')
 
 # ── SERVEO tunnel ─────────────────────────────────────────────────────────────
 
