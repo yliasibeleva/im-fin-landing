@@ -1,0 +1,30 @@
+# Sensitive
+.env
+*.key
+*.pem
+
+# Database
+data_storage/
+*.db
+*.sqlite
+
+# Logs
+*.log
+launcher.pid
+
+# Tunnel / temp files
+tunnel_url.txt
+cloudflared.exe
+ngrok.exe
+
+# Temp diagnostic scripts
+_*.py
+_*.txt
+_*.bat
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
